@@ -29,6 +29,11 @@ class PPGtk:Presenter from Gtk:Application:Window {
 	private Gtk:Drawing:Area *draw_next    = { (GtkDrawingArea *)gtk_drawing_area_new(); };
 	private Gtk:Drawing:Area *draw_counter = { (GtkDrawingArea *)gtk_drawing_area_new(); };
 
+	private Gtk:Button *button_prev = { (GtkButton *)gtk_button_new() };
+	private Gtk:Button *button_next = { (GtkButton *)gtk_button_new() };
+	private Gtk:Toggle:Button *tbutton_freeze = { (GtkToggleButton *)gtk_toggle_button_new_with_mnemonic(_("_Freeze")) };
+	private Gtk:Toggle:Button *tbutton_blank  = { (GtkToggleButton *)gtk_toggle_button_new_with_mnemonic(_("_Blank")) };
+
 	private gint slide = 0;
 	property INT slide (
 				nick = "Current slide",
@@ -56,9 +61,12 @@ class PPGtk:Presenter from Gtk:Application:Window {
 		GtkGrid *grid = (GtkGrid *)gtk_grid_new();
 		gtk_container_add(GTK_CONTAINER(self), GTK_WIDGET(grid));
 
+		GtkGrid *button_grid = (GtkGrid *)gtk_grid_new();
+
 		gtk_grid_attach(grid, GTK_WIDGET(selfp->draw_current), 0, 0, 1, 2);
 		gtk_grid_attach(grid, GTK_WIDGET(selfp->draw_next   ), 1, 0, 1, 1);
 		gtk_grid_attach(grid, GTK_WIDGET(selfp->draw_counter), 1, 1, 1, 1);
+		gtk_grid_attach(grid, GTK_WIDGET(button_grid        ), 0, 2, 2, 1);
 
 		gtk_widget_set_size_request(GTK_WIDGET(selfp->draw_current), 300, 300);
 		g_object_set(G_OBJECT(selfp->draw_current), "hexpand", TRUE, "vexpand", TRUE, "margin-right", 1, NULL);
@@ -66,6 +74,23 @@ class PPGtk:Presenter from Gtk:Application:Window {
 		g_object_set(G_OBJECT(selfp->draw_next), "hexpand", TRUE, "vexpand", TRUE, "margin-bottom", 1, NULL);
 		gtk_widget_set_size_request(GTK_WIDGET(selfp->draw_counter), 100, 50);
 		g_object_set(G_OBJECT(selfp->draw_counter), "hexpand", FALSE, "vexpand", TRUE, NULL);
+
+		gtk_grid_attach(button_grid, GTK_WIDGET(selfp->button_prev   ), 0, 0, 1, 1);
+		gtk_grid_attach(button_grid, GTK_WIDGET(selfp->tbutton_freeze), 1, 0, 1, 1);
+		gtk_grid_attach(button_grid, GTK_WIDGET(selfp->tbutton_blank ), 2, 0, 1, 1);
+		gtk_grid_attach(button_grid, GTK_WIDGET(selfp->button_next   ), 3, 0, 1, 1);
+
+		g_object_set(G_OBJECT(button_grid       ), "margin-top", 1, NULL);
+		g_object_set(G_OBJECT(selfp->button_prev   ), "hexpand", FALSE, "vexpand", TRUE, NULL);
+		g_object_set(G_OBJECT(selfp->tbutton_freeze), "hexpand", TRUE, "vexpand", TRUE, "margin-right", 1, NULL);
+		g_object_set(G_OBJECT(selfp->tbutton_blank ), "hexpand", TRUE, "vexpand", TRUE, "margin-right", 1, NULL);
+		g_object_set(G_OBJECT(selfp->button_next   ), "hexpand", FALSE, "vexpand", TRUE, "margin-right", 1, NULL);
+
+		gtk_container_add(GTK_CONTAINER(selfp->button_prev), gtk_image_new_from_icon_name("previous", GTK_ICON_SIZE_BUTTON));
+		gtk_container_add(GTK_CONTAINER(selfp->button_next), gtk_image_new_from_icon_name("forward", GTK_ICON_SIZE_BUTTON));
+
+		gtk_actionable_set_action_name(GTK_ACTIONABLE(selfp->button_prev), "win.previous");
+		gtk_actionable_set_action_name(GTK_ACTIONABLE(selfp->button_next), "win.next");
 
 		g_signal_connect(G_OBJECT(selfp->draw_current), "draw", G_CALLBACK(&self_on_draw_current), self);
 		g_signal_connect(G_OBJECT(selfp->draw_next   ), "draw", G_CALLBACK(&self_on_draw_next), self);
@@ -96,6 +121,16 @@ class PPGtk:Presenter from Gtk:Application:Window {
 
 		action = g_simple_action_new("close", NULL);
 		g_signal_connect(G_OBJECT(action), "activate", G_CALLBACK(self_on_action_close), self);
+		g_simple_action_set_enabled(action, TRUE);
+		g_action_map_add_action(G_ACTION_MAP(self), G_ACTION(action));
+
+		action = g_simple_action_new("next", NULL);
+		g_signal_connect(G_OBJECT(action), "activate", G_CALLBACK(self_on_action_next), self);
+		g_simple_action_set_enabled(action, TRUE);
+		g_action_map_add_action(G_ACTION_MAP(self), G_ACTION(action));
+
+		action = g_simple_action_new("previous", NULL);
+		g_signal_connect(G_OBJECT(action), "activate", G_CALLBACK(self_on_action_previous), self);
 		g_simple_action_set_enabled(action, TRUE);
 		g_action_map_add_action(G_ACTION_MAP(self), G_ACTION(action));
 
@@ -227,8 +262,8 @@ class PPGtk:Presenter from Gtk:Application:Window {
 		gdouble scalew = widget_width / text_width ;
 		gdouble scaleh = widget_height / text_height;
 		gdouble scale = scalew < scaleh ? scalew : scaleh;
-		cairo_move_to(cr, widget_width - text_width, widget_height - text_height);
-		cairo_scale(cr, scale, scale);
+		cairo_move_to(cr, widget_width - text_width, 0);
+		//cairo_scale(cr, scale, scale);
 		pango_cairo_show_layout(cr, layout);
 
 		g_object_unref(layout);
@@ -262,7 +297,7 @@ class PPGtk:Presenter from Gtk:Application:Window {
 	/**
 	  * Action callback to move to the previous slide.
 	  */
-	private void on_action_prev(G:Action *a, G:Variant *param, gpointer data){
+	private void on_action_previous(G:Action *a, G:Variant *param, gpointer data){
 		PPGTK_UNUSED(a);
 		PPGTK_UNUSED(param);
 		Self *self = SELF(data);
