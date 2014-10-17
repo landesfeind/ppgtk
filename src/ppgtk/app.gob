@@ -1,0 +1,101 @@
+%h{
+#include <ppgtk/ppgtk.h>
+#include <ppgtk/presenter.h>
+%}
+
+%{
+
+gint main(gint argc, gchar **argv){
+	g_type_init();
+	PPGtkApp *app = ppgtk_app_new();
+	gint status = g_application_run(G_APPLICATION(app), argc, argv);
+	g_object_unref(G_OBJECT(app));
+	return status;
+}
+%}
+
+/**
+  * The main application for the GTK Pdf Presenter.
+  */
+class PPGtk:App from Gtk:Application {
+
+	constructor(self){
+		g_signal_connect(self, "open", G_CALLBACK(self_on_open), NULL);
+		g_signal_connect(self, "activate", G_CALLBACK(self_on_activate), NULL);
+		g_signal_connect(self, "startup", G_CALLBACK(self_on_startup), NULL);
+	}
+
+	public PPGtkApp *new(void){
+		return GET_NEW_VARG(
+				"application-id", "de.landesfeind.ppgtk", 
+				"flags", G_APPLICATION_HANDLES_OPEN, 
+				NULL);
+	}
+
+	private void on_startup(GApplication *app, gpointer data){
+		(void)(data);
+		Self *self = SELF(app);
+		self_init_actions(self);
+		self_init_menu(self);
+	}
+	
+	private void on_activate(GApplication *app, gpointer data){
+		(void)(data);
+		(void)(app);
+		g_debug("Activating by showing an empty window");
+		PPGtkPresenter *w = ppgtk_presenter_new(GTK_APPLICATION(app));
+		gtk_widget_show_all(GTK_WIDGET(w));
+		gtk_application_add_window(GTK_APPLICATION(app), GTK_WINDOW(w));
+	}
+
+	private void on_open(G:Application *application (check null type), 
+					gpointer files_ptr, 
+					gint n_files, 
+					gchar *hint, 
+					gpointer user_data){
+		PPGTK_UNUSED(hint);
+		PPGTK_UNUSED(user_data);
+
+		if( ! GTK_IS_APPLICATION(application) )
+			g_error("Application parameter is not a Gtk:Application");
+			
+		GFile **files = (GFile **)files_ptr;
+		gint i = 0;
+
+		for(i = 0; i < n_files; i++){
+			PPGtkPresenter *window = ppgtk_presenter_new_with_file(GTK_APPLICATION(application), files[i]);
+			gtk_widget_show_all(GTK_WIDGET(window));
+			gtk_application_add_window(GTK_APPLICATION(application), GTK_WINDOW(window));
+		}
+
+	}
+
+	private void init_actions(self){
+	}
+
+	private void init_menu(self){
+		GMenu *menu = (GMenu *)g_menu_new();
+		GMenu *section;
+		GMenu *submenu;
+		
+		// FILE MENU
+		submenu = (GMenu *)g_menu_new();
+		g_menu_append_submenu(menu, _("File"), G_MENU_MODEL(submenu));
+		section = (GMenu *)g_menu_new();
+		g_menu_append_section(submenu, NULL, G_MENU_MODEL(section));
+		g_menu_append(section, _("Open ..."), "win.open");
+		g_menu_append(section, _("Open in new window ..."), "win.open-new");
+		section = (GMenu *)g_menu_new();
+		g_menu_append_section(submenu, NULL, G_MENU_MODEL(section));
+		g_menu_append(section, _("Close"), "win.close");
+
+		// HELP MENU
+		submenu = (GMenu *)g_menu_new();
+		g_menu_append_submenu(menu, _("Help"), G_MENU_MODEL(submenu));
+		g_menu_append(submenu, _("About"), "win.about");
+		g_menu_freeze(menu);
+
+		gtk_application_set_menubar(GTK_APPLICATION(self), G_MENU_MODEL(menu));
+	}
+
+}
