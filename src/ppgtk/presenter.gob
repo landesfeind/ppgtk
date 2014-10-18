@@ -1,5 +1,10 @@
 %h{
 #include <ppgtk/ppgtk.h>
+
+#define PPGTK_ACTION_NEXT "next"
+#define PPGTK_ACTION_PREVIOUS "previous"
+#define PPGTK_ACTION_FREEZE "freeze"
+#define PPGTK_ACTION_BLANK "blank"
 %}
 
 class PPGtk:Presenter from Gtk:Application:Window {
@@ -56,12 +61,14 @@ class PPGtk:Presenter from Gtk:Application:Window {
 
 
 	constructor(self){
+		self_init_actions(self);
 		gtk_window_set_title(GTK_WINDOW(self), PPGTK_NAME);
 
 		GtkGrid *grid = (GtkGrid *)gtk_grid_new();
 		gtk_container_add(GTK_CONTAINER(self), GTK_WIDGET(grid));
 
 		GtkGrid *button_grid = (GtkGrid *)gtk_grid_new();
+		g_object_set(G_OBJECT(button_grid), "hexpand", TRUE, "vexpand", FALSE, "margin-top", 1, NULL);
 
 		gtk_grid_attach(grid, GTK_WIDGET(selfp->draw_current), 0, 0, 1, 2);
 		gtk_grid_attach(grid, GTK_WIDGET(selfp->draw_next   ), 1, 0, 1, 1);
@@ -91,6 +98,8 @@ class PPGtk:Presenter from Gtk:Application:Window {
 
 		gtk_actionable_set_action_name(GTK_ACTIONABLE(selfp->button_prev), "win.previous");
 		gtk_actionable_set_action_name(GTK_ACTIONABLE(selfp->button_next), "win.next");
+		gtk_actionable_set_action_name(GTK_ACTIONABLE(selfp->tbutton_freeze), "win.freeze");
+		gtk_actionable_set_action_name(GTK_ACTIONABLE(selfp->tbutton_blank), "win.blank");
 
 		g_signal_connect(G_OBJECT(selfp->draw_current), "draw", G_CALLBACK(&self_on_draw_current), self);
 		g_signal_connect(G_OBJECT(selfp->draw_next   ), "draw", G_CALLBACK(&self_on_draw_next), self);
@@ -124,12 +133,12 @@ class PPGtk:Presenter from Gtk:Application:Window {
 		g_simple_action_set_enabled(action, TRUE);
 		g_action_map_add_action(G_ACTION_MAP(self), G_ACTION(action));
 
-		action = g_simple_action_new("next", NULL);
+		action = g_simple_action_new(PPGTK_ACTION_NEXT, NULL);
 		g_signal_connect(G_OBJECT(action), "activate", G_CALLBACK(self_on_action_next), self);
 		g_simple_action_set_enabled(action, TRUE);
 		g_action_map_add_action(G_ACTION_MAP(self), G_ACTION(action));
 
-		action = g_simple_action_new("previous", NULL);
+		action = g_simple_action_new(PPGTK_ACTION_PREVIOUS, NULL);
 		g_signal_connect(G_OBJECT(action), "activate", G_CALLBACK(self_on_action_previous), self);
 		g_simple_action_set_enabled(action, TRUE);
 		g_action_map_add_action(G_ACTION_MAP(self), G_ACTION(action));
@@ -138,13 +147,23 @@ class PPGtk:Presenter from Gtk:Application:Window {
 		g_signal_connect(G_OBJECT(action), "activate", G_CALLBACK(self_on_action_about), self);
 		g_simple_action_set_enabled(action, TRUE);
 		g_action_map_add_action(G_ACTION_MAP(self), G_ACTION(action));
+
+		action = g_simple_action_new_stateful(PPGTK_ACTION_BLANK, G_VARIANT_TYPE_BOOLEAN, g_variant_new("b", FALSE));
+		g_signal_connect(G_OBJECT(action), "activate", G_CALLBACK(self_on_action_blank), self);
+		g_simple_action_set_enabled(action, TRUE);
+		g_action_map_add_action(G_ACTION_MAP(self), G_ACTION(action));
+
+		action = g_simple_action_new_stateful(PPGTK_ACTION_FREEZE, G_VARIANT_TYPE_BOOLEAN, g_variant_new("b", FALSE));
+		g_signal_connect(G_OBJECT(action), "activate", G_CALLBACK(self_on_action_freeze), self);
+		g_simple_action_set_enabled(action, TRUE);
+		g_action_map_add_action(G_ACTION_MAP(self), G_ACTION(action));
 	}
 
 	public PPGtkPresenter *new(Gtk:Application *app){
-		return self_new_with_file(app, NULL);
+		return GET_NEW_VARG("application", app, NULL);
 	}
 
-	public PPGtkPresenter *new_with_file(Gtk:Application *app (check null type), G:File *pdf_file (check type)){
+	public PPGtkPresenter *new_with_file(Gtk:Application *app (check null type), G:File *pdf_file (check null type)){
 		return GET_NEW_VARG("file", pdf_file, "application", app, NULL);
 	}
 
@@ -153,6 +172,24 @@ class PPGtk:Presenter from Gtk:Application:Window {
 			g_object_unref(selfp->document);
 		selfp->document = NULL;
 		gtk_widget_queue_draw(GTK_WIDGET(self));
+	}
+
+	private gboolean get_freeze(self){
+		GAction *a = g_action_map_lookup_action(G_ACTION_MAP(self), "freeze");
+		GVariant *v = g_action_get_state(a);
+		gboolean freeze = g_variant_get_boolean(v);
+		g_object_unref(v);
+		g_object_unref(a);
+		return freeze;
+	}
+
+	private gboolean get_blank(self){
+		GAction *a = g_action_map_lookup_action(G_ACTION_MAP(self), "blank");
+		GVariant *v = g_action_get_state(a);
+		gboolean blank = g_variant_get_boolean(v);
+		g_object_unref(v);
+		g_object_unref(a);
+		return blank;
 	}
 
 	public void redraw_slides(self){
@@ -250,7 +287,7 @@ class PPGtk:Presenter from Gtk:Application:Window {
 		
 		gint text_width, text_height;
 
-		sprintf(buffer, "%d / %d", selfp->slide, poppler_document_get_n_pages(selfp->document));
+		sprintf(buffer, "%d / %d", selfp->slide + 1, poppler_document_get_n_pages(selfp->document));
 		//g_debug("Display page counter: '%s'", buffer);
 		PangoLayout *layout = pango_cairo_create_layout(cr);
 		pango_layout_set_text(layout, buffer, -1);
@@ -274,7 +311,18 @@ class PPGtk:Presenter from Gtk:Application:Window {
 	private void on_notify_slide(G:Object *s, G:Param:Spec *pspec, gpointer data){
 		PPGTK_UNUSED(pspec);
 		PPGTK_UNUSED(data);
-		self_redraw_slides(SELF(s));
+		Self *self = SELF(s);
+		self_redraw_slides(self);
+
+		GAction *a = NULL;
+		a = g_action_map_lookup_action(G_ACTION_MAP(self), PPGTK_ACTION_PREVIOUS);
+		PPGTK_OBJECT_IS(a, G_TYPE_SIMPLE_ACTION);
+		g_simple_action_set_enabled(G_SIMPLE_ACTION(a), selfp->document != NULL && selfp->slide > 0);
+
+		a = g_action_map_lookup_action(G_ACTION_MAP(self), PPGTK_ACTION_NEXT);
+		PPGTK_OBJECT_IS(a, G_TYPE_SIMPLE_ACTION);
+		g_simple_action_set_enabled(G_SIMPLE_ACTION(a), selfp->document != NULL &&
+				selfp->slide +1 < poppler_document_get_n_pages(selfp->document));
 	}
 
 	/** Notify callback when the file changes **/
@@ -301,9 +349,8 @@ class PPGtk:Presenter from Gtk:Application:Window {
 		PPGTK_UNUSED(a);
 		PPGTK_UNUSED(param);
 		Self *self = SELF(data);
-		if( selfp->slide > 0 )
+		if( selfp->slide <= 0 )
 			return;
-		
 		self_set_slide(self, self_get_slide(self) - 1 );
 	}
 
@@ -352,6 +399,22 @@ class PPGtk:Presenter from Gtk:Application:Window {
 		PPGTK_UNUSED(a);
 		PPGTK_UNUSED(v);
 		self_open_file(SELF(data), TRUE);
+	}
+
+	private void on_action_blank(G:Simple:Action *a, G:Variant *v, gpointer data){
+		PPGTK_UNUSED(a);
+		PPGTK_UNUSED(v);
+		PPGTK_UNUSED(data);
+		g_debug("Blank action with state: %s", g_variant_get_boolean(v) ? "true" :"false");
+		g_debug("Not yet implemented");
+	}
+
+	private void on_action_freeze(G:Simple:Action *a, G:Variant *v, gpointer data){
+		PPGTK_UNUSED(a);
+		PPGTK_UNUSED(v);
+		PPGTK_UNUSED(data);
+		g_debug("Freeze action with state: %s", g_variant_get_boolean(v) ? "true" :"false");
+		g_debug("Not yet implemented");
 	}
 
 	/**

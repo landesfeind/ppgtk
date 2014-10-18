@@ -90,10 +90,10 @@ testt: $(PROGRAM)
 	time ./$(PROGRAM) $(PROGRAM_ARGS)
 
 testd: $(PROGRAM)
-	G_MESSAGES_DEBUG=all G_DEBUG=all ./$(PROGRAM) $(PROGRAM_ARGS)
+	G_MESSAGES_DEBUG=all ./$(PROGRAM) $(PROGRAM_ARGS)
 
 testv: $(PROGRAM)
-	G_MESSAGES_DEBUG=all G_DEBUG=all valgrind ./$(PROGRAM) $(PROGRAM_ARGS)
+	G_MESSAGES_DEBUG=all valgrind ./$(PROGRAM) $(PROGRAM_ARGS)
 
 test-memory: $(PROGRAM)
 	G_DEBUG=gc-friendly G_SLICE=always-malloc valgrind --suppressions=glibsupp.txt --leak-check=full --show-reachable=yes ./$(PROGRAM) $(PROGRAM_ARGS)
