@@ -1,0 +1,39 @@
+%h{
+#include <ppgtk/ppgtk.h>
+%}
+
+
+class PPGtk:Display from Gtk:Window {
+
+	private PPGtk:Slide *slide = { ppgtk_slide_new() };
+
+	constructor(self){
+		gtk_container_add(GTK_CONTAINER(self), GTK_WIDGET(selfp->slide));
+		g_object_set(G_OBJECT(selfp->slide), "expand", TRUE, NULL);
+		g_signal_connect(G_OBJECT(self), "show", G_CALLBACK(self_on_show), NULL);
+	}
+
+
+	public PPGtkDisplay *new(void){
+		return GET_NEW_VARG("type", GTK_WINDOW_POPUP, NULL);
+	}
+
+	public gboolean is_valid(self){
+		GdkScreen *default_screen = gdk_screen_get_default();
+		return gdk_screen_get_n_monitors(default_screen) > 1;
+	}
+
+	public void present(self, Poppler:Page *page (check null type)){
+		ppgtk_slide_set_page(selfp->slide, G_OBJECT(page));
+	}
+
+
+	private void on_show(Gtk:Widget *w, gpointer data){
+		if( ! gtk_widget_get_visible(w) )
+			return;
+		GdkScreen *default_screen = gdk_screen_get_default();
+		g_debug("Adjusting own size");
+		gtk_widget_set_size_request(w, gdk_screen_get_width(default_screen), gdk_screen_get_height(default_screen));
+		gtk_widget_queue_draw(w);
+	}
+}

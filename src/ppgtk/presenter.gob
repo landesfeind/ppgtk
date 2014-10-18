@@ -5,6 +5,7 @@
 #define PPGTK_ACTION_PREVIOUS "previous"
 #define PPGTK_ACTION_FREEZE "freeze"
 #define PPGTK_ACTION_BLANK "blank"
+#define PPGTK_ACTION_PRESENT "present"
 #define PPGTK_ACTION_START "start"
 #define PPGTK_ACTION_RESET "reset"
 %}
@@ -32,6 +33,9 @@ class PPGtk:Presenter from Gtk:Application:Window {
 	private Poppler:Document *document = NULL
 		unrefwith g_object_unref;
 
+		
+	private PPGtk:Display *display = { ppgtk_display_new() }
+		destroywith gtk_widget_destroy;
 	private PPGtk:Slide *draw_current = { ppgtk_slide_new() };
 	private PPGtk:Slide *draw_next    = { ppgtk_slide_new() };
 	private Gtk:Drawing:Area *draw_counter = { (GtkDrawingArea *)gtk_drawing_area_new(); };
@@ -164,6 +168,11 @@ class PPGtk:Presenter from Gtk:Application:Window {
 		g_simple_action_set_enabled(action, selfp->document != NULL);
 		g_action_map_add_action(G_ACTION_MAP(self), G_ACTION(action));
 
+		action = g_simple_action_new(PPGTK_ACTION_PRESENT, NULL);
+		g_signal_connect(G_OBJECT(action), "activate", G_CALLBACK(self_on_action_present), self);
+		g_simple_action_set_enabled(action, selfp->document != NULL);
+		g_action_map_add_action(G_ACTION_MAP(self), G_ACTION(action));
+
 
 		action = g_simple_action_new(PPGTK_ACTION_START, NULL);
 		g_signal_connect(G_OBJECT(action), "activate", G_CALLBACK(self_on_action_start), self);
@@ -288,18 +297,23 @@ class PPGtk:Presenter from Gtk:Application:Window {
 		if( ! selfp->document )
 			return;
 
+		gtk_widget_queue_draw(GTK_WIDGET(selfp->draw_counter));
+
 		PopplerPage *p;
 		p = poppler_document_get_page(selfp->document, selfp->slide);
 		if( ! p ){
 			g_warning("Can not get document page %d", selfp->slide);
 		}
 		ppgtk_slide_set_page(PPGTK_SLIDE(selfp->draw_current), G_OBJECT(p));
+
+		if( selfp->display )
+			ppgtk_display_present(selfp->display, p);
+
 		p = poppler_document_get_page(selfp->document, selfp->slide + 1);
 		if( ! p ){
 			g_warning("Can not get document page %d", selfp->slide +1);
 		}
 		ppgtk_slide_set_page(PPGTK_SLIDE(selfp->draw_next), G_OBJECT(p));
-
 
 
 		// Update actions to be sensitive
@@ -334,6 +348,25 @@ class PPGtk:Presenter from Gtk:Application:Window {
 	/**
 	  * Action callback to start the timer and presentation
 	  */
+	private void on_action_present(G:Action *a, G:Variant *param, gpointer data){
+		PPGTK_UNUSED(a);
+		PPGTK_UNUSED(param);
+		Self *self = SELF(data);
+
+		if( gtk_widget_get_visible(GTK_WIDGET(selfp->display)) ){
+			g_debug("Switching presenter mode off");
+			gtk_widget_hide(GTK_WIDGET(selfp->display));
+		}
+		else {
+			g_debug("Switching presenter mode on");
+			gtk_widget_show_all(GTK_WIDGET(selfp->display));
+		}
+	}
+
+
+	/**
+	  * Action callback to start the timer
+	  */
 	private void on_action_start(G:Action *a, G:Variant *param, gpointer data){
 		PPGTK_UNUSED(a);
 		PPGTK_UNUSED(param);
@@ -359,12 +392,9 @@ class PPGtk:Presenter from Gtk:Application:Window {
 		PPGTK_UNUSED(a);
 		PPGTK_UNUSED(param);
 		Self *self = SELF(data);
-		if( selfp->slide > 0 )
+		if( selfp->slide <= 0 )
 			return;
 		self_set_slide(self, self_get_slide(self) - 1 );
-		// At least now the start timer should run1
-		GAction *a = g_action_map_lookup_action(G_ACTION_MAP(self), PPGTK_ACTION_START);
-		g_action_activate(a, NULL);
 	}
 
 	/**
@@ -377,9 +407,6 @@ class PPGtk:Presenter from Gtk:Application:Window {
 		if( selfp->slide + 1 >= poppler_document_get_n_pages(selfp->document) )
 			return;
 		self_set_slide(self, self_get_slide(self) + 1 );
-		// At least now the start timer should run1
-		GAction *a = g_action_map_lookup_action(G_ACTION_MAP(self), PPGTK_ACTION_START);
-		g_action_activate(a, NULL);
 	}
 
 	/**
@@ -544,6 +571,8 @@ class PPGtk:Presenter from Gtk:Application:Window {
 		a = g_action_map_lookup_action(G_ACTION_MAP(self), PPGTK_ACTION_FREEZE);
 		g_simple_action_set_enabled(G_SIMPLE_ACTION(a), TRUE);
 		a = g_action_map_lookup_action(G_ACTION_MAP(self), PPGTK_ACTION_BLANK);
+		g_simple_action_set_enabled(G_SIMPLE_ACTION(a), TRUE);
+		a = g_action_map_lookup_action(G_ACTION_MAP(self), PPGTK_ACTION_PRESENT);
 		g_simple_action_set_enabled(G_SIMPLE_ACTION(a), TRUE);
 		a = g_action_map_lookup_action(G_ACTION_MAP(self), PPGTK_ACTION_START);
 		g_simple_action_set_enabled(G_SIMPLE_ACTION(a), TRUE);

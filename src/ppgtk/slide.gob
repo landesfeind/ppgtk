@@ -42,10 +42,14 @@ class PPGtk:Slide from Gtk:Drawing:Area {
 		gdouble scale_y = widget_height / height;
 		gdouble scale_min = scale_x < scale_y ? scale_x : scale_y;
 
-		if( widget_width < width*scale_min )
-			cairo_move_to(cr, widget_width/2 - (width*scale_min)/2, 0);
-		else 
-			cairo_move_to(cr, 0, 0);
+		gdouble offset_x = 0;
+		gdouble offset_y = 0;
+		if( widget_width > width*scale_min )
+			offset_x = widget_width/2 - (width*scale_min)/2;
+		if( widget_height > height*scale_min )
+			offset_y = widget_height/2 - (height*scale_min)/2;
+		g_debug("Offsetting slide display at %gx%g", offset_x, offset_y);
+		cairo_move_to(cr, offset_x, offset_y);
 
 		cairo_scale(cr, scale_min, scale_min);
 		poppler_page_render(selfp->page, cr);
