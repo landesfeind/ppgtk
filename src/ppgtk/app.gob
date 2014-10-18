@@ -116,6 +116,9 @@ class PPGtk:App from Gtk:Application {
 		gtk_application_add_accelerator(app, "<Release>f"    , "win.freeze", NULL);
 		gtk_application_add_accelerator(app, "<Release>b"    , "win.blank", NULL);
 
+		gtk_application_add_accelerator(app, "<Release>s"    , "win.start", NULL);
+		gtk_application_add_accelerator(app, "<Release>r"    , "win.reset", NULL);
+
 #endif
 	}
 

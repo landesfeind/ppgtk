@@ -10,6 +10,10 @@
 #include <gtk/gtk.h>
 #include <glib/poppler.h>
 
+#include <ppgtk/slide.h>
+#include <ppgtk/presenter.h>
+#include <ppgtk/display.h>
+
 #define PPGTK_NAME "PPGtk"
 #define PPGTK_NAME_LING _("Pdf Presenter for GTK")
 

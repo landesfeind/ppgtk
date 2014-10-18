@@ -1,11 +1,12 @@
 %h{
 #include <ppgtk/ppgtk.h>
-#include <ppgtk/slide.h>
 
 #define PPGTK_ACTION_NEXT "next"
 #define PPGTK_ACTION_PREVIOUS "previous"
 #define PPGTK_ACTION_FREEZE "freeze"
 #define PPGTK_ACTION_BLANK "blank"
+#define PPGTK_ACTION_START "start"
+#define PPGTK_ACTION_RESET "reset"
 %}
 
 class PPGtk:Presenter from Gtk:Application:Window {
@@ -39,6 +40,9 @@ class PPGtk:Presenter from Gtk:Application:Window {
 	private Gtk:Button *button_next = { (GtkButton *)gtk_button_new() };
 	private Gtk:Toggle:Button *tbutton_freeze = { (GtkToggleButton *)gtk_check_button_new_with_mnemonic(_("_Freeze")) };
 	private Gtk:Toggle:Button *tbutton_blank  = { (GtkToggleButton *)gtk_check_button_new_with_mnemonic(_("_Blank")) };
+	
+	private Gtk:Progress:Bar *progressbar_time = { (GtkProgressBar *)gtk_progress_bar_new() };
+	private Gtk:Progress:Bar *progressbar_render = { (GtkProgressBar *)gtk_progress_bar_new() };
 
 	private gint slide = 0;
 	property INT slide (
@@ -71,10 +75,6 @@ class PPGtk:Presenter from Gtk:Application:Window {
 		GtkGrid *button_grid = (GtkGrid *)gtk_grid_new();
 		g_object_set(G_OBJECT(button_grid), "hexpand", TRUE, "vexpand", FALSE, "margin-top", 1, NULL);
 
-		gtk_grid_attach(grid, GTK_WIDGET(selfp->draw_current), 0, 0, 1, 2);
-		gtk_grid_attach(grid, GTK_WIDGET(selfp->draw_next   ), 1, 0, 1, 1);
-		gtk_grid_attach(grid, GTK_WIDGET(selfp->draw_counter), 1, 1, 1, 1);
-		gtk_grid_attach(grid, GTK_WIDGET(button_grid        ), 0, 2, 2, 1);
 
 		gtk_widget_set_size_request(GTK_WIDGET(selfp->draw_current), 300, 300);
 		g_object_set(G_OBJECT(selfp->draw_current), "hexpand", TRUE, "vexpand", TRUE, "margin-right", 1, NULL);
@@ -87,7 +87,6 @@ class PPGtk:Presenter from Gtk:Application:Window {
 		gtk_grid_attach(button_grid, GTK_WIDGET(selfp->tbutton_freeze), 1, 0, 1, 1);
 		gtk_grid_attach(button_grid, GTK_WIDGET(selfp->tbutton_blank ), 2, 0, 1, 1);
 		gtk_grid_attach(button_grid, GTK_WIDGET(selfp->button_next   ), 3, 0, 1, 1);
-
 		g_object_set(G_OBJECT(button_grid       ), "margin-top", 1, NULL);
 		g_object_set(G_OBJECT(selfp->button_prev   ), "hexpand", FALSE, "vexpand", TRUE, NULL);
 		g_object_set(G_OBJECT(selfp->tbutton_freeze), "hexpand", TRUE, "vexpand", TRUE, "margin-right", 1, NULL);
@@ -103,6 +102,22 @@ class PPGtk:Presenter from Gtk:Application:Window {
 		gtk_actionable_set_action_name(GTK_ACTIONABLE(selfp->tbutton_blank), "win.blank");
 		//gtk_actionable_set_action_target_value(GTK_ACTIONABLE(selfp->tbutton_freeze), g_variant_new("b", TRUE));
 		//gtk_actionable_set_action_target_value(GTK_ACTIONABLE(selfp->tbutton_blank), g_variant_new("b", TRUE));
+
+		gtk_progress_bar_set_text(selfp->progressbar_render, "Pre-rendering pages...");
+		gtk_progress_bar_set_fraction(selfp->progressbar_render, 1.0);
+		gtk_progress_bar_set_show_text(selfp->progressbar_render, TRUE);
+
+		gtk_progress_bar_set_text(selfp->progressbar_time, "Elapsed time");
+		gtk_progress_bar_set_fraction(selfp->progressbar_time, 0.0);
+		gtk_progress_bar_set_show_text(selfp->progressbar_time, TRUE);
+		g_object_set(G_OBJECT(selfp->progressbar_time), "expand", TRUE, NULL);
+
+		gtk_grid_attach(grid, GTK_WIDGET(selfp->draw_current      ), 0, 0, 1, 2);
+		gtk_grid_attach(grid, GTK_WIDGET(selfp->draw_next         ), 1, 0, 1, 1);
+		gtk_grid_attach(grid, GTK_WIDGET(selfp->draw_counter      ), 1, 1, 1, 1);
+		gtk_grid_attach(grid, GTK_WIDGET(selfp->progressbar_time  ), 0, 2, 2, 1);
+		gtk_grid_attach(grid, GTK_WIDGET(button_grid              ), 0, 3, 2, 1);
+		gtk_grid_attach(grid, GTK_WIDGET(selfp->progressbar_render), 0, 4, 2, 1);
 
 		g_signal_connect(G_OBJECT(selfp->draw_counter), "draw", G_CALLBACK(&self_on_draw_counter), self);
 		g_signal_connect(G_OBJECT(self), "notify::slide", G_CALLBACK(&self_on_notify_slide), NULL);
@@ -146,6 +161,17 @@ class PPGtk:Presenter from Gtk:Application:Window {
 
 		action = g_simple_action_new("about", NULL);
 		g_signal_connect(G_OBJECT(action), "activate", G_CALLBACK(self_on_action_about), self);
+		g_simple_action_set_enabled(action, selfp->document != NULL);
+		g_action_map_add_action(G_ACTION_MAP(self), G_ACTION(action));
+
+
+		action = g_simple_action_new(PPGTK_ACTION_START, NULL);
+		g_signal_connect(G_OBJECT(action), "activate", G_CALLBACK(self_on_action_start), self);
+		g_simple_action_set_enabled(action, selfp->document != NULL);
+		g_action_map_add_action(G_ACTION_MAP(self), G_ACTION(action));
+
+		action = g_simple_action_new(PPGTK_ACTION_RESET, NULL);
+		g_signal_connect(G_OBJECT(action), "activate", G_CALLBACK(self_on_action_reset), self);
 		g_simple_action_set_enabled(action, selfp->document != NULL);
 		g_action_map_add_action(G_ACTION_MAP(self), G_ACTION(action));
 
@@ -306,15 +332,39 @@ class PPGtk:Presenter from Gtk:Application:Window {
 
 
 	/**
+	  * Action callback to start the timer and presentation
+	  */
+	private void on_action_start(G:Action *a, G:Variant *param, gpointer data){
+		PPGTK_UNUSED(a);
+		PPGTK_UNUSED(param);
+		Self *self = SELF(data);
+		g_warning("NOT YET IMPLEMENTED - start timer");
+	}
+
+	/**
+	  * Action callback to reset the timer and slide of the curret presentation
+	  */
+	private void on_action_reset(G:Action *a, G:Variant *param, gpointer data){
+		PPGTK_UNUSED(a);
+		PPGTK_UNUSED(param);
+		Self *self = SELF(data);
+		self_set_slide(self, 0);
+		g_warning("NOT YET IMPLEMENTED - stop timer");
+	}
+
+	/**
 	  * Action callback to move to the previous slide.
 	  */
 	private void on_action_previous(G:Action *a, G:Variant *param, gpointer data){
 		PPGTK_UNUSED(a);
 		PPGTK_UNUSED(param);
 		Self *self = SELF(data);
-		if( selfp->slide <= 0 )
+		if( selfp->slide > 0 )
 			return;
 		self_set_slide(self, self_get_slide(self) - 1 );
+		// At least now the start timer should run1
+		GAction *a = g_action_map_lookup_action(G_ACTION_MAP(self), PPGTK_ACTION_START);
+		g_action_activate(a, NULL);
 	}
 
 	/**
@@ -327,6 +377,9 @@ class PPGtk:Presenter from Gtk:Application:Window {
 		if( selfp->slide + 1 >= poppler_document_get_n_pages(selfp->document) )
 			return;
 		self_set_slide(self, self_get_slide(self) + 1 );
+		// At least now the start timer should run1
+		GAction *a = g_action_map_lookup_action(G_ACTION_MAP(self), PPGTK_ACTION_START);
+		g_action_activate(a, NULL);
 	}
 
 	/**
@@ -481,6 +534,23 @@ class PPGtk:Presenter from Gtk:Application:Window {
 		g_free(title);
 
 		self_set_slide(self, 0);
+	
+		// Enable actions
+		GAction *a;
+		a = g_action_map_lookup_action(G_ACTION_MAP(self), PPGTK_ACTION_NEXT);
+		g_simple_action_set_enabled(G_SIMPLE_ACTION(a), TRUE);
+		a = g_action_map_lookup_action(G_ACTION_MAP(self), PPGTK_ACTION_PREVIOUS);
+		g_simple_action_set_enabled(G_SIMPLE_ACTION(a), TRUE);
+		a = g_action_map_lookup_action(G_ACTION_MAP(self), PPGTK_ACTION_FREEZE);
+		g_simple_action_set_enabled(G_SIMPLE_ACTION(a), TRUE);
+		a = g_action_map_lookup_action(G_ACTION_MAP(self), PPGTK_ACTION_BLANK);
+		g_simple_action_set_enabled(G_SIMPLE_ACTION(a), TRUE);
+		a = g_action_map_lookup_action(G_ACTION_MAP(self), PPGTK_ACTION_START);
+		g_simple_action_set_enabled(G_SIMPLE_ACTION(a), TRUE);
+		a = g_action_map_lookup_action(G_ACTION_MAP(self), PPGTK_ACTION_RESET);
+		g_simple_action_set_enabled(G_SIMPLE_ACTION(a), TRUE);
+
+
 		return TRUE;
 	}
 
