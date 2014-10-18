@@ -206,19 +206,20 @@ class PPGtk:Presenter from Gtk:Application:Window {
 	}
 
 	public void reset(self){
-		if( selfp->document )
-			g_object_unref(selfp->document);
-		selfp->document = NULL;
 		self_set_slide(self, 0);
 		gtk_widget_queue_draw(GTK_WIDGET(self));
+	}
+
+	private void set_freeze(self, gboolean freeze){
+		GAction *a = g_action_map_lookup_action(G_ACTION_MAP(self), PPGTK_ACTION_FREEZE);
+		GVariant *v = g_variant_new("b", freeze);
+		g_action_change_state(a, v);
 	}
 
 	private gboolean get_freeze(self){
 		GAction *a = g_action_map_lookup_action(G_ACTION_MAP(self), PPGTK_ACTION_FREEZE);
 		GVariant *v = g_action_get_state(a);
 		gboolean freeze = g_variant_get_boolean(v);
-		g_object_unref(v);
-		g_object_unref(a);
 		return freeze;
 	}
 
@@ -231,33 +232,17 @@ class PPGtk:Presenter from Gtk:Application:Window {
 		return blank;
 	}
 
-	public void redraw_slides(self){
-		// Only re-draw sub-widgets because the main part does not need to be redrawn
-		gtk_widget_queue_draw(GTK_WIDGET(selfp->draw_current));
-		gtk_widget_queue_draw(GTK_WIDGET(selfp->draw_next   ));
-		gtk_widget_queue_draw(GTK_WIDGET(selfp->draw_counter));
+	private void set_blank(self, gboolean blank){
+		GAction *a = g_action_map_lookup_action(G_ACTION_MAP(self), PPGTK_ACTION_BLANK);
+		GVariant *v = g_variant_new("b", blank);
+		g_action_change_state(a, v);
 	}
 
-	private void _draw_frame(Gtk:Widget *w, cairo_t *cr, gdouble r, gdouble g, gdouble b){
-		cairo_save(cr);
-		gdouble widget_width  = (gdouble)gtk_widget_get_allocated_width(w);
-		gdouble widget_height = (gdouble)gtk_widget_get_allocated_height(w);
-		cairo_move_to(cr, 0, 0);
-		cairo_line_to(cr, widget_width, 0 );
-		cairo_line_to(cr, widget_width, widget_height);
-		cairo_line_to(cr, 0, widget_height);
-		cairo_close_path(cr);
-		cairo_set_source_rgba(cr, r, g, b, 1);
-		cairo_stroke(cr);
-		cairo_restore(cr);
-
-	}
 
 	private gboolean on_draw_counter(GtkWidget *w, cairo_t *cr, gpointer data){
 		gchar buffer[25];
 		Self *self = SELF(data);
 		self_ensure_document(self);
-		self__draw_frame(w, cr, 0, 1, 0);
 
 		if( ! selfp->document )
 			return TRUE;
@@ -306,7 +291,7 @@ class PPGtk:Presenter from Gtk:Application:Window {
 		}
 		ppgtk_slide_set_page(PPGTK_SLIDE(selfp->draw_current), G_OBJECT(p));
 
-		if( selfp->display )
+		if( ! self_get_freeze(self) )
 			ppgtk_display_present(selfp->display, p);
 
 		p = poppler_document_get_page(selfp->document, selfp->slide + 1);
@@ -382,6 +367,7 @@ class PPGtk:Presenter from Gtk:Application:Window {
 		PPGTK_UNUSED(param);
 		Self *self = SELF(data);
 		self_set_slide(self, 0);
+		self_set_freeze(self, FALSE);
 		g_warning("NOT YET IMPLEMENTED - stop timer");
 	}
 
@@ -447,32 +433,48 @@ class PPGtk:Presenter from Gtk:Application:Window {
 	private void on_action_blank(G:Simple:Action *a, G:Variant *v, gpointer data){
 		PPGTK_UNUSED(a);
 		PPGTK_UNUSED(v);
-		PPGTK_UNUSED(data);
+		Self *self = SELF(data);
+
 		v = g_action_get_state(G_ACTION(a));
 		//g_debug("Blank action with state: %s", v == NULL ? "NULLVARIANT" : g_variant_get_boolean(v) ? "true" :"false");
 		v = g_variant_new("b", ! g_variant_get_boolean(v));
 		g_action_change_state(G_ACTION(a), v);
+
+		if( self_get_blank(self) ){
+			ppgtk_display_present(selfp->display, NULL);
+		}
+		else {
+			self_set_slide(self, selfp->slide);
+		}
+
 	}
 
 	private void on_action_freeze(G:Simple:Action *a, G:Variant *v, gpointer data){
 		PPGTK_UNUSED(a);
 		PPGTK_UNUSED(v);
-		PPGTK_UNUSED(data);
+		Self *self = SELF(data);
+
 		v = g_action_get_state(G_ACTION(a));
 		//g_debug("Freeze action with state: %s", v == NULL ? "NULLVARIANT" : g_variant_get_boolean(v) ? "true" :"false");
 		v = g_variant_new("b", ! g_variant_get_boolean(v));
 		g_action_change_state(G_ACTION(a), v);
+
+		if( ! self_get_freeze(self) ){
+			self_set_slide(self, selfp->slide);
+		}
 	}
 
 	private void on_change_state_freeze(G:Simple:Action *a, G:Variant *v, gpointer data){
+		Self *self = SELF(data);
 		g_debug("Changing freeze state to: %s", g_variant_get_boolean(v) ? "true" : "false");
 		g_simple_action_set_state(a, v);
-		g_warning("NOT YET IMPLEMENTED");
+		self_set_slide(self, selfp->slide);
+		//g_warning("NOT YET IMPLEMENTED");
 	}
 	private void on_change_state_blank(G:Simple:Action *a, G:Variant *v, gpointer data){
 		g_debug("Changing blank state to: %s", g_variant_get_boolean(v) ? "true" : "false");
 		g_simple_action_set_state(a, v);
-		g_warning("NOT YET IMPLEMENTED");
+		//g_warning("NOT YET IMPLEMENTED");
 	}
 
 	/**

@@ -23,14 +23,17 @@ class PPGtk:Display from Gtk:Window {
 		return gdk_screen_get_n_monitors(default_screen) > 1;
 	}
 
-	public void present(self, Poppler:Page *page (check null type)){
+	public void present(self, Poppler:Page *page (check type)){
 		ppgtk_slide_set_page(selfp->slide, G_OBJECT(page));
 	}
-
 
 	private void on_show(Gtk:Widget *w, gpointer data){
 		if( ! gtk_widget_get_visible(w) )
 			return;
+#if DEBUG
+		g_warning("PPGTK_NAME was compiled using the DEBUG flag. Will not show presenter in full size.");
+	return;
+#endif
 		GdkScreen *default_screen = gdk_screen_get_default();
 		g_debug("Adjusting own size");
 		gtk_widget_set_size_request(w, gdk_screen_get_width(default_screen), gdk_screen_get_height(default_screen));
