@@ -227,8 +227,7 @@ class PPGtk:Presenter from Gtk:Application:Window {
 		GAction *a = g_action_map_lookup_action(G_ACTION_MAP(self), PPGTK_ACTION_BLANK);
 		GVariant *v = g_action_get_state(a);
 		gboolean blank = g_variant_get_boolean(v);
-		g_object_unref(v);
-		g_object_unref(a);
+		g_debug("Queried blank state is: %s", blank ? "blank" : "show");
 		return blank;
 	}
 
@@ -291,7 +290,7 @@ class PPGtk:Presenter from Gtk:Application:Window {
 		}
 		ppgtk_slide_set_page(PPGTK_SLIDE(selfp->draw_current), G_OBJECT(p));
 
-		if( ! self_get_freeze(self) )
+		if( ! self_get_freeze(self) && ! self_get_blank(self) )
 			ppgtk_display_present(selfp->display, p);
 
 		p = poppler_document_get_page(selfp->document, selfp->slide + 1);
