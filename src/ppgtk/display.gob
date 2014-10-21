@@ -2,7 +2,14 @@
 #include <ppgtk/ppgtk.h>
 %}
 
-
+/**
+  * The PPGtk:Display is a undecorated window that will 
+  * just display a single PDF page in full screen mode.
+  * The PPGtk:Display will do a best guess to find a second 
+  * monitor and will expand to that window.
+  * If this is not possible, the it will present the slide in 
+  * single monitor mode, that is overdrawing the main window.
+  */
 class PPGtk:Display from Gtk:Window {
 
 	private PPGtk:Slide *slide = { ppgtk_slide_new() };
@@ -12,7 +19,6 @@ class PPGtk:Display from Gtk:Window {
 		g_object_set(G_OBJECT(selfp->slide), "expand", TRUE, NULL);
 		g_signal_connect(G_OBJECT(self), "show", G_CALLBACK(self_on_show), NULL);
 	}
-
 
 	public PPGtkDisplay *new(void){
 		return GET_NEW_VARG("type", GTK_WINDOW_POPUP, NULL);
@@ -31,12 +37,15 @@ class PPGtk:Display from Gtk:Window {
 		if( ! gtk_widget_get_visible(w) )
 			return;
 #if DEBUG
-		g_warning("PPGTK_NAME was compiled using the DEBUG flag. Will not show presenter in full size.");
+		g_warning(PPGTK_NAME" was compiled using the DEBUG flag. Will not show presenter in full size.");
 	return;
 #endif
 		GdkScreen *default_screen = gdk_screen_get_default();
 		g_debug("Adjusting own size");
 		gtk_widget_set_size_request(w, gdk_screen_get_width(default_screen), gdk_screen_get_height(default_screen));
+		gint monitors = gdk_screen_get_n_monitors(default_screen);
+		g_debug("Found %d monitors", monitors);
+
 		gtk_widget_queue_draw(w);
 	}
 }

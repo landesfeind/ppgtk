@@ -1,6 +1,7 @@
 %h{
 #include <ppgtk/ppgtk.h>
 
+#define PPGTK_ACTION_OPEN "open"
 #define PPGTK_ACTION_NEXT "next"
 #define PPGTK_ACTION_PREVIOUS "previous"
 #define PPGTK_ACTION_FREEZE "freeze"
@@ -71,6 +72,8 @@ class PPGtk:Presenter from Gtk:Application:Window {
 
 	constructor(self){
 		self_init_actions(self);
+		gtk_window_set_transient_for(GTK_WINDOW(selfp->display), GTK_WINDOW(self));
+
 		gtk_window_set_title(GTK_WINDOW(self), PPGTK_NAME);
 
 		GtkGrid *grid = (GtkGrid *)gtk_grid_new();
@@ -138,7 +141,7 @@ class PPGtk:Presenter from Gtk:Application:Window {
 	private void init_actions(self){
 		GSimpleAction *action = NULL;
 
-		action = g_simple_action_new("open", NULL);
+		action = g_simple_action_new(PPGTK_ACTION_OPEN, NULL);
 		g_signal_connect(G_OBJECT(action), "activate", G_CALLBACK(self_on_action_open), self);
 		g_simple_action_set_enabled(action, TRUE);
 		g_action_map_add_action(G_ACTION_MAP(self), G_ACTION(action));
@@ -197,25 +200,43 @@ class PPGtk:Presenter from Gtk:Application:Window {
 		g_signal_connect(action, "change-state", G_CALLBACK(&self_on_change_state_freeze), self);
 	}
 
+	/**
+	  * Creates a new presenter with a given application.
+	  */
 	public PPGtkPresenter *new(Gtk:Application *app){
 		return GET_NEW_VARG("application", app, NULL);
 	}
 
+	/**
+	  * Creates a new presenter for the given application and automatically
+	  * opens the given file.
+	  */
 	public PPGtkPresenter *new_with_file(Gtk:Application *app (check null type), G:File *pdf_file (check null type)){
 		return GET_NEW_VARG("file", pdf_file, "application", app, NULL);
 	}
 
+	/**
+	  * Reset the presentation. This results in setting the current slide to the
+	  * first slide and stopping the elapsed timer.
+	  */
 	public void reset(self){
 		self_set_slide(self, 0);
 		gtk_widget_queue_draw(GTK_WIDGET(self));
 	}
 
+	/**
+	  * Set to freeze the presentation mode, i.e. not updating the PPGtk:Display.
+	  */
 	private void set_freeze(self, gboolean freeze){
 		GAction *a = g_action_map_lookup_action(G_ACTION_MAP(self), PPGTK_ACTION_FREEZE);
 		GVariant *v = g_variant_new("b", freeze);
 		g_action_change_state(a, v);
 	}
 
+	/**
+	  * Check if the presenter is currently in "freeze"-mode. In that case
+	  * the display is not being updated but presents the current slide.
+	  */
 	private gboolean get_freeze(self){
 		GAction *a = g_action_map_lookup_action(G_ACTION_MAP(self), PPGTK_ACTION_FREEZE);
 		GVariant *v = g_action_get_state(a);
@@ -290,8 +311,9 @@ class PPGtk:Presenter from Gtk:Application:Window {
 		}
 		ppgtk_slide_set_page(PPGTK_SLIDE(selfp->draw_current), G_OBJECT(p));
 
-		if( ! self_get_freeze(self) && ! self_get_blank(self) )
+		if( ! self_get_freeze(self) && ! self_get_blank(self) && selfp->display ){
 			ppgtk_display_present(selfp->display, p);
+		}
 
 		p = poppler_document_get_page(selfp->document, selfp->slide + 1);
 		if( ! p ){
@@ -317,6 +339,10 @@ class PPGtk:Presenter from Gtk:Application:Window {
 		PPGTK_UNUSED(pspec);
 		PPGTK_UNUSED(data);
 		Self *self = SELF(s);
+		if( selfp->document ){
+			g_object_unref(selfp->document);
+			selfp->document = NULL;
+		}
 		self_reset(self);
 	}
 
@@ -470,6 +496,7 @@ class PPGtk:Presenter from Gtk:Application:Window {
 		self_set_slide(self, selfp->slide);
 		//g_warning("NOT YET IMPLEMENTED");
 	}
+
 	private void on_change_state_blank(G:Simple:Action *a, G:Variant *v, gpointer data){
 		g_debug("Changing blank state to: %s", g_variant_get_boolean(v) ? "true" : "false");
 		g_simple_action_set_state(a, v);
@@ -606,7 +633,9 @@ class PPGtk:Presenter from Gtk:Application:Window {
 		}
 
 		g_debug("Running file chooser dialog to open PDF");
+		gtk_widget_show_all(GTK_WIDGET(selfp->filechooser));
 		gint res = gtk_dialog_run(GTK_DIALOG(selfp->filechooser));
+		gtk_widget_hide(GTK_WIDGET(selfp->filechooser));
 		if( res != GTK_RESPONSE_ACCEPT )
 			return;
 
@@ -616,9 +645,14 @@ class PPGtk:Presenter from Gtk:Application:Window {
 		g_debug("Running file chooser dialog returned with %d files", (gint)g_slist_length(list));
 
 		for(guint i = 0; i < g_slist_length(list); i++){
+			//g_debug("Getting the %d-th file", i+1);
 			gpointer data = g_slist_nth_data(list, i);
-			if( data && G_IS_FILE(data) )
-				self_open_file_single(self, G_FILE(data), new_window);
+			g_debug("Test G_IS_FILE");
+			if( data ){
+				GFile *f = g_file_new_for_path((gchar *)data);
+				self_open_file_single(self, f, new_window);
+				g_object_unref(f);
+			}
 		}
 
 		g_slist_free_full(list, g_free);
