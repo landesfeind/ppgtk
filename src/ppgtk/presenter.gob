@@ -9,6 +9,7 @@
 #define PPGTK_ACTION_PRESENT "present"
 #define PPGTK_ACTION_START "start"
 #define PPGTK_ACTION_RESET "reset"
+#define PPGTK_ACTION_SWITCH "switch-monitor"
 %}
 
 class PPGtk:Presenter from Gtk:Application:Window {
@@ -199,6 +200,11 @@ class PPGtk:Presenter from Gtk:Application:Window {
 		g_simple_action_set_enabled(action, TRUE);
 		g_action_map_add_action(G_ACTION_MAP(self), G_ACTION(action));
 		g_signal_connect(action, "change-state", G_CALLBACK(&self_on_change_state_freeze), self);
+
+		action = g_simple_action_new(PPGTK_ACTION_SWITCH, NULL);
+		g_signal_connect(G_OBJECT(action), "activate", G_CALLBACK(self_on_action_switch), self);
+		g_simple_action_set_enabled(action, selfp->document != NULL);
+		g_action_map_add_action(G_ACTION_MAP(self), G_ACTION(action));
 	}
 
 	/**
@@ -367,10 +373,12 @@ class PPGtk:Presenter from Gtk:Application:Window {
 		if( gtk_widget_get_visible(GTK_WIDGET(selfp->display)) ){
 			g_debug("Switching presenter mode off");
 			gtk_widget_hide(GTK_WIDGET(selfp->display));
+			gtk_window_unfullscreen(GTK_WINDOW(self));
 		}
 		else {
 			g_debug("Switching presenter mode on");
 			gtk_widget_show_all(GTK_WIDGET(selfp->display));
+			gtk_window_fullscreen(GTK_WINDOW(self));
 		}
 	}
 
@@ -520,6 +528,14 @@ class PPGtk:Presenter from Gtk:Application:Window {
 		gtk_widget_destroy(GTK_WIDGET(dialog));
 	}
 
+	private void on_action_switch(G:Simple:Action *a, G:Variant *v, gpointer data){
+		PPGTK_UNUSED(a);
+		PPGTK_UNUSED(v);
+		Self *self = SELF(data);
+		ppgtk_display_switch_monitor(selfp->display);
+	}
+
+
 	/**
 	  * Displays an error message. 
 	  * @see ppgtk_presenter_display_message
@@ -605,6 +621,8 @@ class PPGtk:Presenter from Gtk:Application:Window {
 		a = g_action_map_lookup_action(G_ACTION_MAP(self), PPGTK_ACTION_START);
 		g_simple_action_set_enabled(G_SIMPLE_ACTION(a), TRUE);
 		a = g_action_map_lookup_action(G_ACTION_MAP(self), PPGTK_ACTION_RESET);
+		g_simple_action_set_enabled(G_SIMPLE_ACTION(a), TRUE);
+		a = g_action_map_lookup_action(G_ACTION_MAP(self), PPGTK_ACTION_SWITCH);
 		g_simple_action_set_enabled(G_SIMPLE_ACTION(a), TRUE);
 
 

@@ -42,6 +42,19 @@ class PPGtk:Display from Gtk:Window {
 		ppgtk_slide_set_page(selfp->slide, G_OBJECT(page));
 	}
 
+	public void switch_monitor(self){
+		GdkScreen *default_screen = gdk_screen_get_default();
+		gint monitors = gdk_screen_get_n_monitors(default_screen);
+		g_debug("Old display monitor is: %d", selfp->display_monitor);
+		selfp->display_monitor = selfp->display_monitor + 1 < monitors
+			? selfp->display_monitor + 1
+			: 0;
+		g_debug("New display monitor is: %d", selfp->display_monitor);
+		self_determine_monitor(self);
+		gtk_widget_queue_draw(GTK_WIDGET(self));
+	}
+	
+
 	private void on_show(Gtk:Widget *w, gpointer data){
 		if( ! gtk_widget_get_visible(w) )
 			return;
@@ -55,18 +68,15 @@ class PPGtk:Display from Gtk:Window {
 	}
 
 	private void determine_monitor(self){
-
 		GdkScreen *default_screen = gdk_screen_get_default();
-		g_debug("Have GdkScreen with size %d %d", gdk_screen_get_width(default_screen), gdk_screen_get_height(default_screen));
 		gint monitors = gdk_screen_get_n_monitors(default_screen);
-		g_debug("Found %d monitors", monitors);
+		g_debug("Have GdkScreen with size %d %d and %d monitors", gdk_screen_get_width(default_screen), gdk_screen_get_height(default_screen), monitors);
 		if( monitors == 1 ){
 			selfp->display_monitor = 0;
 		}
-		else { // if( selfp->display_monitor < 0 || selfp->display_monitor >= monitors ){
+		else if( selfp->display_monitor < 0 || selfp->display_monitor >= monitors ){
 			gint posx, posy;
 			gtk_window_get_position(selfp->parent, &posx, &posy);
-
 			gint main_monitor = gdk_screen_get_monitor_at_point(default_screen, posx, posy);
 			g_debug("Presenter console is shown on %d", main_monitor);
 			selfp->display_monitor = main_monitor == 0 ? 1 : 0;
