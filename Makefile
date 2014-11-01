@@ -83,7 +83,6 @@ clean:
 	rm -f  $(PROGRAM)
 	
 test: $(PROGRAM)
-	#if [ -f "$(DIRBUILD)/test.prseq" ]; then rm $(DIRBUILD)/test.prseq; fi
 	./$(PROGRAM) $(PROGRAM_ARGS)
 
 testt: $(PROGRAM)

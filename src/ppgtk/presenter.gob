@@ -7,7 +7,6 @@
 #define PPGTK_ACTION_FREEZE "freeze"
 #define PPGTK_ACTION_BLANK "blank"
 #define PPGTK_ACTION_PRESENT "present"
-#define PPGTK_ACTION_START "start"
 #define PPGTK_ACTION_RESET "reset"
 #define PPGTK_ACTION_SWITCH "switch-monitor"
 #define PPGTK_ACTION_SET_TIME "set-time"
@@ -53,14 +52,13 @@ class PPGtk:Presenter from Gtk:Application:Window {
 	private PPGtk:Slide *draw_current = { ppgtk_slide_new() };
 	private PPGtk:Slide *draw_next    = { ppgtk_slide_new() };
 	private Gtk:Drawing:Area *draw_counter = { (GtkDrawingArea *)gtk_drawing_area_new(); };
+	private Gtk:Drawing:Area *draw_time = { (GtkDrawingArea *)gtk_drawing_area_new(); };
+
 
 	private Gtk:Button *button_prev = { (GtkButton *)gtk_button_new() };
 	private Gtk:Button *button_next = { (GtkButton *)gtk_button_new() };
 	private Gtk:Toggle:Button *tbutton_freeze = { (GtkToggleButton *)gtk_check_button_new_with_mnemonic(_("_Freeze")) };
 	private Gtk:Toggle:Button *tbutton_blank  = { (GtkToggleButton *)gtk_check_button_new_with_mnemonic(_("_Blank")) };
-	
-	private Gtk:Progress:Bar *progressbar_time = { (GtkProgressBar *)gtk_progress_bar_new() };
-	private Gtk:Progress:Bar *progressbar_render = { (GtkProgressBar *)gtk_progress_bar_new() };
 
 	private gint slide = 0;
 	property INT slide (
@@ -94,19 +92,28 @@ class PPGtk:Presenter from Gtk:Application:Window {
 		GtkGrid *button_grid = (GtkGrid *)gtk_grid_new();
 		g_object_set(G_OBJECT(button_grid), "hexpand", TRUE, "vexpand", FALSE, "margin-top", 1, NULL);
 
+		GtkGrid *text_grid = (GtkGrid *)gtk_grid_new();
+		g_object_set(G_OBJECT(text_grid), "hexpand", TRUE, "vexpand", FALSE, "margin-top", 1, NULL);
 
 		gtk_widget_set_size_request(GTK_WIDGET(selfp->draw_current), 300, 300);
 		g_object_set(G_OBJECT(selfp->draw_current), "hexpand", TRUE, "vexpand", TRUE, "margin-right", 1, NULL);
 		gtk_widget_set_size_request(GTK_WIDGET(selfp->draw_next), 100, 100);
 		g_object_set(G_OBJECT(selfp->draw_next), "hexpand", TRUE, "vexpand", TRUE, "margin-bottom", 1, NULL);
-		gtk_widget_set_size_request(GTK_WIDGET(selfp->draw_counter), 100, 50);
-		g_object_set(G_OBJECT(selfp->draw_counter), "hexpand", FALSE, "vexpand", TRUE, NULL);
+
+
+		g_object_set(G_OBJECT(text_grid          ), "margin-top", 1, NULL);
+		gtk_widget_set_size_request(GTK_WIDGET(selfp->draw_counter), -1, 100);
+		g_object_set(G_OBJECT(selfp->draw_counter), "expand", TRUE, "margin", 2, NULL);
+		gtk_widget_set_size_request(GTK_WIDGET(selfp->draw_time), -1, 100);
+		g_object_set(G_OBJECT(selfp->draw_time), "expand", TRUE, "margin", 2, NULL);
+		gtk_grid_attach(text_grid, GTK_WIDGET(selfp->draw_time   ), 0, 2, 1, 1);
+		gtk_grid_attach(text_grid, GTK_WIDGET(selfp->draw_counter), 1, 2, 1, 1);
 
 		gtk_grid_attach(button_grid, GTK_WIDGET(selfp->button_prev   ), 0, 0, 1, 1);
 		gtk_grid_attach(button_grid, GTK_WIDGET(selfp->tbutton_freeze), 1, 0, 1, 1);
 		gtk_grid_attach(button_grid, GTK_WIDGET(selfp->tbutton_blank ), 2, 0, 1, 1);
 		gtk_grid_attach(button_grid, GTK_WIDGET(selfp->button_next   ), 3, 0, 1, 1);
-		g_object_set(G_OBJECT(button_grid       ), "margin-top", 1, NULL);
+		g_object_set(G_OBJECT(button_grid          ), "margin-top", 1, NULL);
 		g_object_set(G_OBJECT(selfp->button_prev   ), "hexpand", FALSE, "vexpand", TRUE, NULL);
 		g_object_set(G_OBJECT(selfp->tbutton_freeze), "hexpand", TRUE, "vexpand", TRUE, "margin-right", 1, NULL);
 		g_object_set(G_OBJECT(selfp->tbutton_blank ), "hexpand", TRUE, "vexpand", TRUE, "margin-right", 1, NULL);
@@ -115,34 +122,21 @@ class PPGtk:Presenter from Gtk:Application:Window {
 		gtk_container_add(GTK_CONTAINER(selfp->button_prev), gtk_image_new_from_icon_name("previous", GTK_ICON_SIZE_BUTTON));
 		gtk_container_add(GTK_CONTAINER(selfp->button_next), gtk_image_new_from_icon_name("forward", GTK_ICON_SIZE_BUTTON));
 
-		gtk_actionable_set_action_name(GTK_ACTIONABLE(selfp->button_prev), "win.previous");
-		gtk_actionable_set_action_name(GTK_ACTIONABLE(selfp->button_next), "win.next");
-		gtk_actionable_set_action_name(GTK_ACTIONABLE(selfp->tbutton_freeze), "win.freeze");
-		gtk_actionable_set_action_name(GTK_ACTIONABLE(selfp->tbutton_blank), "win.blank");
-		//gtk_actionable_set_action_target_value(GTK_ACTIONABLE(selfp->tbutton_freeze), g_variant_new("b", TRUE));
-		//gtk_actionable_set_action_target_value(GTK_ACTIONABLE(selfp->tbutton_blank), g_variant_new("b", TRUE));
+		gtk_actionable_set_action_name(GTK_ACTIONABLE(selfp->button_prev), "win."PPGTK_ACTION_PREVIOUS);
+		gtk_actionable_set_action_name(GTK_ACTIONABLE(selfp->button_next), "win."PPGTK_ACTION_NEXT);
+		gtk_actionable_set_action_name(GTK_ACTIONABLE(selfp->tbutton_freeze), "win."PPGTK_ACTION_FREEZE);
+		gtk_actionable_set_action_name(GTK_ACTIONABLE(selfp->tbutton_blank), "win."PPGTK_ACTION_BLANK);
 
-		gtk_progress_bar_set_text(selfp->progressbar_render, "Pre-rendering pages...");
-		gtk_progress_bar_set_fraction(selfp->progressbar_render, 1.0);
-		gtk_progress_bar_set_show_text(selfp->progressbar_render, TRUE);
 
-		gtk_progress_bar_set_text(selfp->progressbar_time, "Elapsed time");
-		gtk_progress_bar_set_fraction(selfp->progressbar_time, 0.0);
-		gtk_progress_bar_set_show_text(selfp->progressbar_time, TRUE);
-		g_object_set(G_OBJECT(selfp->progressbar_time), "expand", TRUE, "margin", 2, NULL);
-
-		gtk_grid_attach(grid, GTK_WIDGET(selfp->draw_current      ), 0, 0, 1, 2);
-		gtk_grid_attach(grid, GTK_WIDGET(selfp->draw_next         ), 1, 0, 1, 1);
-		gtk_grid_attach(grid, GTK_WIDGET(selfp->draw_counter      ), 1, 1, 1, 1);
-		gtk_grid_attach(grid, GTK_WIDGET(selfp->progressbar_time  ), 0, 2, 2, 1);
-		gtk_grid_attach(grid, GTK_WIDGET(button_grid              ), 0, 3, 2, 1);
-		gtk_grid_attach(grid, GTK_WIDGET(selfp->progressbar_render), 0, 4, 2, 1);
+		gtk_grid_attach(grid, GTK_WIDGET(selfp->draw_current ), 0, 0, 1, 2);
+		gtk_grid_attach(grid, GTK_WIDGET(selfp->draw_next    ), 1, 0, 1, 1);
+		gtk_grid_attach(grid, GTK_WIDGET(text_grid           ), 0, 2, 2, 1);
+		gtk_grid_attach(grid, GTK_WIDGET(button_grid         ), 0, 3, 2, 1);
 
 		g_signal_connect(G_OBJECT(selfp->draw_counter), "draw", G_CALLBACK(&self_on_draw_counter), self);
+		g_signal_connect(G_OBJECT(selfp->draw_time   ), "draw", G_CALLBACK(&self_on_draw_time), self);
 		g_signal_connect(G_OBJECT(self), "notify::slide", G_CALLBACK(&self_on_notify_slide), NULL);
 		g_signal_connect(G_OBJECT(self), "notify::file", G_CALLBACK(&self_on_notify_file), NULL);
-
-		self_format_remaining_time(self);
 	}
 
 	dispose(self){
@@ -282,11 +276,40 @@ class PPGtk:Presenter from Gtk:Application:Window {
 		gint r = gtk_dialog_run(GTK_DIALOG(d));
 		if( r == GTK_RESPONSE_ACCEPT ){
 			selfp->presentation_time = ppgtk_timedialog_get_seconds(d);
-			self_format_remaining_time(self);
+			gtk_widget_queue_draw(GTK_WIDGET(selfp->draw_time));
 		}
 		gtk_widget_destroy(GTK_WIDGET(d));
 		return;
 	}
+
+	private void draw_text(Gtk:Widget *w, cairo_t *cr, gchar *text){
+		gdouble widget_width  = (gdouble)gtk_widget_get_allocated_width(w);
+		gdouble widget_height = (gdouble)gtk_widget_get_allocated_height(w);
+
+		cairo_move_to(cr, 0, 0);
+		cairo_line_to(cr, widget_width, 0);
+		cairo_line_to(cr, widget_width, widget_height);
+		cairo_line_to(cr, 0, widget_height);
+		cairo_set_source_rgb(cr, 0, 0, 0);
+		cairo_stroke(cr);
+		
+		gint text_width, text_height;
+		PangoLayout *layout = pango_cairo_create_layout(cr);
+		pango_layout_set_text(layout, text, -1);
+		pango_layout_get_size(layout, &text_width, &text_height);
+		text_width  /= PANGO_SCALE;
+		text_height /= PANGO_SCALE;
+
+		gdouble scalew = widget_width / text_width ;
+		gdouble scaleh = widget_height / text_height;
+		gdouble scale = scalew < scaleh ? scalew : scaleh;
+		scale *= 0.9;
+		cairo_move_to(cr, (widget_width - (text_width*scale))/2, (widget_height - (text_height*scale))/2);
+		//cairo_move_to(cr, 0, 0);
+		cairo_scale(cr, scale, scale);
+		pango_cairo_show_layout(cr, layout);
+	}
+
 
 	private gboolean on_draw_counter(GtkWidget *w, cairo_t *cr, gpointer data){
 		gchar buffer[25];
@@ -296,28 +319,19 @@ class PPGtk:Presenter from Gtk:Application:Window {
 		if( ! selfp->document )
 			return TRUE;
 
-		gdouble widget_width  = (gdouble)gtk_widget_get_allocated_width(w);
-		gdouble widget_height = (gdouble)gtk_widget_get_allocated_height(w);
-		
-		gint text_width, text_height;
-
 		sprintf(buffer, "%d / %d", selfp->slide + 1, poppler_document_get_n_pages(selfp->document));
-		//g_debug("Display page counter: '%s'", buffer);
-		PangoLayout *layout = pango_cairo_create_layout(cr);
-		pango_layout_set_text(layout, buffer, -1);
-		pango_layout_get_size(layout, &text_width, &text_height);
+		self_draw_text(w, cr, buffer);
+		return TRUE;
+	}
 
-		text_width  /= PANGO_SCALE;
-		text_height /= PANGO_SCALE;
+	private gboolean on_draw_time(GtkWidget *w, cairo_t *cr, gpointer data){
+		Self *self = SELF(data);
+		self_ensure_document(self);
+		if( ! selfp->document )
+			return TRUE;
 
-		gdouble scalew = widget_width / text_width ;
-		gdouble scaleh = widget_height / text_height;
-		gdouble scale = scalew < scaleh ? scalew : scaleh;
-		cairo_move_to(cr, widget_width - text_width, 0);
-		//cairo_scale(cr, scale, scale);
-		pango_cairo_show_layout(cr, layout);
-
-		g_object_unref(layout);
+		gchar *text = self_format_remaining_time(self, NULL);
+		self_draw_text(w, cr, text);
 		return TRUE;
 	}
 
@@ -404,15 +418,6 @@ class PPGtk:Presenter from Gtk:Application:Window {
 		}
 	}
 
-
-	/**
-	  * Action callback to start the timer
-	  */
-	private void on_action_start(G:Action *a, G:Variant *param, gpointer data){
-		PPGTK_UNUSED(a);
-		PPGTK_UNUSED(param);
-		Self *self = SELF(data);
-	}
 
 	/**
 	  * Action callback to reset the timer and slide of the curret presentation
@@ -527,13 +532,12 @@ class PPGtk:Presenter from Gtk:Application:Window {
 		g_debug("Changing freeze state to: %s", g_variant_get_boolean(v) ? "true" : "false");
 		g_simple_action_set_state(a, v);
 		self_set_slide(self, selfp->slide);
-		//g_warning("NOT YET IMPLEMENTED");
 	}
 
 	private void on_change_state_blank(G:Simple:Action *a, G:Variant *v, gpointer data){
+		PPGTK_UNUSED(data);
 		g_debug("Changing blank state to: %s", g_variant_get_boolean(v) ? "true" : "false");
 		g_simple_action_set_state(a, v);
-		//g_warning("NOT YET IMPLEMENTED");
 	}
 
 	/**
@@ -650,8 +654,6 @@ class PPGtk:Presenter from Gtk:Application:Window {
 		g_simple_action_set_enabled(G_SIMPLE_ACTION(a), TRUE);
 		a = g_action_map_lookup_action(G_ACTION_MAP(self), PPGTK_ACTION_PRESENT);
 		g_simple_action_set_enabled(G_SIMPLE_ACTION(a), TRUE);
-		a = g_action_map_lookup_action(G_ACTION_MAP(self), PPGTK_ACTION_START);
-		g_simple_action_set_enabled(G_SIMPLE_ACTION(a), TRUE);
 		a = g_action_map_lookup_action(G_ACTION_MAP(self), PPGTK_ACTION_RESET);
 		g_simple_action_set_enabled(G_SIMPLE_ACTION(a), TRUE);
 		a = g_action_map_lookup_action(G_ACTION_MAP(self), PPGTK_ACTION_SWITCH);
@@ -719,7 +721,7 @@ class PPGtk:Presenter from Gtk:Application:Window {
 		}
 	}
 
-	private void format_remaining_time(self){
+	private gchar *format_remaining_time(self, gboolean *close_to_end){
 		gint diff = 0;
 		if( selfp->presentation_start_time >= 0 ){
 			diff = (gint)(g_get_monotonic_time() - selfp->presentation_start_time);
@@ -727,8 +729,11 @@ class PPGtk:Presenter from Gtk:Application:Window {
 		}
 		gint t;
 
-		gtk_progress_bar_set_fraction(selfp->progressbar_time, ((gdouble)diff) / selfp->presentation_time );
 		diff = selfp->presentation_time - diff;
+
+		if( close_to_end ){
+			*close_to_end = diff < 0.2 * selfp->presentation_time;
+		}
 
 		GString *text = g_string_new(NULL);
 		gboolean use_double = FALSE;
@@ -758,13 +763,12 @@ class PPGtk:Presenter from Gtk:Application:Window {
 		else 
 			g_string_append_printf(text, "%d", diff);
 
-		gtk_progress_bar_set_text(selfp->progressbar_time, text->str);
-		g_string_free(text, TRUE);
+		return g_string_free(text, FALSE);
 	}
 
 	public gboolean on_idle_update_time(gpointer data){
 		Self *self = SELF(data);
-		self_format_remaining_time(self);
+		gtk_widget_queue_draw(GTK_WIDGET(selfp->draw_time));
 		if( selfp->presentation_start_time < 0 ){
 			return G_SOURCE_REMOVE;
 		}

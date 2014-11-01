@@ -56,6 +56,7 @@ class PPGtk:Display from Gtk:Window {
 	
 
 	private void on_show(Gtk:Widget *w, gpointer data){
+		PPGTK_UNUSED(data);
 		if( ! gtk_widget_get_visible(w) )
 			return;
 		if( ! IS_SELF(w) )
