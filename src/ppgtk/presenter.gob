@@ -86,8 +86,6 @@ class PPGtk:Presenter from Gtk:Application:Window {
 	constructor(self){
 		selfp->display = ppgtk_display_new(GTK_WINDOW(self));
 		self_init_actions(self);
-		gtk_window_set_transient_for(GTK_WINDOW(selfp->display), GTK_WINDOW(self));
-
 		gtk_window_set_title(GTK_WINDOW(self), PPGTK_NAME);
 
 		GtkGrid *grid = (GtkGrid *)gtk_grid_new();
@@ -131,7 +129,7 @@ class PPGtk:Presenter from Gtk:Application:Window {
 		gtk_progress_bar_set_text(selfp->progressbar_time, "Elapsed time");
 		gtk_progress_bar_set_fraction(selfp->progressbar_time, 0.0);
 		gtk_progress_bar_set_show_text(selfp->progressbar_time, TRUE);
-		g_object_set(G_OBJECT(selfp->progressbar_time), "expand", TRUE, NULL);
+		g_object_set(G_OBJECT(selfp->progressbar_time), "expand", TRUE, "margin", 2, NULL);
 
 		gtk_grid_attach(grid, GTK_WIDGET(selfp->draw_current      ), 0, 0, 1, 2);
 		gtk_grid_attach(grid, GTK_WIDGET(selfp->draw_next         ), 1, 0, 1, 1);
