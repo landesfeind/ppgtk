@@ -80,7 +80,7 @@ libs: $(patsubst %,c/lib%.a,$(LIBS))
 clean:
 	rm -rf $(DIRBUILD)
 	rm -rf doc
-	rm -f  $(PROGRAMS)
+	rm -f  $(PROGRAM)
 	
 test: $(PROGRAM)
 	#if [ -f "$(DIRBUILD)/test.prseq" ]; then rm $(DIRBUILD)/test.prseq; fi

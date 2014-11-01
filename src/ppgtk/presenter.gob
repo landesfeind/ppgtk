@@ -35,7 +35,7 @@ class PPGtk:Presenter from Gtk:Application:Window {
 		unrefwith g_object_unref;
 
 		
-	private PPGtk:Display *display = { ppgtk_display_new() }
+	private PPGtk:Display *display = NULL
 		destroywith gtk_widget_destroy;
 	private PPGtk:Slide *draw_current = { ppgtk_slide_new() };
 	private PPGtk:Slide *draw_next    = { ppgtk_slide_new() };
@@ -71,6 +71,7 @@ class PPGtk:Presenter from Gtk:Application:Window {
 
 
 	constructor(self){
+		selfp->display = ppgtk_display_new(GTK_WINDOW(self));
 		self_init_actions(self);
 		gtk_window_set_transient_for(GTK_WINDOW(selfp->display), GTK_WINDOW(self));
 
@@ -471,7 +472,6 @@ class PPGtk:Presenter from Gtk:Application:Window {
 		else {
 			self_set_slide(self, selfp->slide);
 		}
-
 	}
 
 	private void on_action_freeze(G:Simple:Action *a, G:Variant *v, gpointer data){
@@ -645,9 +645,7 @@ class PPGtk:Presenter from Gtk:Application:Window {
 		g_debug("Running file chooser dialog returned with %d files", (gint)g_slist_length(list));
 
 		for(guint i = 0; i < g_slist_length(list); i++){
-			//g_debug("Getting the %d-th file", i+1);
 			gpointer data = g_slist_nth_data(list, i);
-			g_debug("Test G_IS_FILE");
 			if( data ){
 				GFile *f = g_file_new_for_path((gchar *)data);
 				self_open_file_single(self, f, new_window);
@@ -660,7 +658,6 @@ class PPGtk:Presenter from Gtk:Application:Window {
 	
 	public void open_file_single(self, G:File *file (check null type), gboolean new_window){
 		g_debug("Opening %swindow to show document %s", new_window ? "new " : "", g_file_get_path(file));
-
 		if( new_window ){ 
 			GtkApplication *app = gtk_window_get_application(GTK_WINDOW(self));
 			Self *window = self_new_with_file(app, file);

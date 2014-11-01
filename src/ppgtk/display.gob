@@ -12,6 +12,15 @@
   */
 class PPGtk:Display from Gtk:Window {
 
+	private Gtk:Window *parent = NULL;
+	property OBJECT parent (
+			blurb = _("The parental window if this display"),
+			object_type = Gtk:Window,
+			flags = CONSTRUCT,
+			export, link);
+
+	private gint display_monitor = -1;
+
 	private PPGtk:Slide *slide = { ppgtk_slide_new() };
 
 	constructor(self){
@@ -20,8 +29,8 @@ class PPGtk:Display from Gtk:Window {
 		g_signal_connect(G_OBJECT(self), "show", G_CALLBACK(self_on_show), NULL);
 	}
 
-	public PPGtkDisplay *new(void){
-		return GET_NEW_VARG("type", GTK_WINDOW_POPUP, NULL);
+	public PPGtkDisplay *new(Gtk:Window *parent (check null type)) onerror NULL {
+		return GET_NEW_VARG("type", GTK_WINDOW_POPUP, "parent", parent, NULL);
 	}
 
 	public gboolean is_valid(self){
@@ -36,16 +45,47 @@ class PPGtk:Display from Gtk:Window {
 	private void on_show(Gtk:Widget *w, gpointer data){
 		if( ! gtk_widget_get_visible(w) )
 			return;
-#if DEBUG
-		g_warning(PPGTK_NAME" was compiled using the DEBUG flag. Will not show presenter in full size.");
-	return;
-#endif
-		GdkScreen *default_screen = gdk_screen_get_default();
-		g_debug("Adjusting own size");
-		gtk_widget_set_size_request(w, gdk_screen_get_width(default_screen), gdk_screen_get_height(default_screen));
-		gint monitors = gdk_screen_get_n_monitors(default_screen);
-		g_debug("Found %d monitors", monitors);
-
+		if( ! IS_SELF(w) )
+			return;
+		Self *self = SELF(w);
+		// Reset display monitor because we are currently not shown
+		selfp->display_monitor = -1;
+		self_determine_monitor(self);
 		gtk_widget_queue_draw(w);
 	}
+
+	private void determine_monitor(self){
+
+		GdkScreen *default_screen = gdk_screen_get_default();
+		g_debug("Have GdkScreen with size %d %d", gdk_screen_get_width(default_screen), gdk_screen_get_height(default_screen));
+		gint monitors = gdk_screen_get_n_monitors(default_screen);
+		g_debug("Found %d monitors", monitors);
+		if( monitors == 1 ){
+			selfp->display_monitor = 0;
+		}
+		else { // if( selfp->display_monitor < 0 || selfp->display_monitor >= monitors ){
+			gint posx, posy;
+			gtk_window_get_position(selfp->parent, &posx, &posy);
+
+			gint main_monitor = gdk_screen_get_monitor_at_point(default_screen, posx, posy);
+			g_debug("Presenter console is shown on %d", main_monitor);
+			selfp->display_monitor = main_monitor == 0 ? 1 : 0;
+		}
+
+		GdkRectangle mgeo;
+		gdk_screen_get_monitor_geometry(default_screen, selfp->display_monitor, &mgeo);
+		g_debug("Display monitor (%d) has geometry %d x %d and offset %d x %d", selfp->display_monitor, mgeo.width, mgeo.height, mgeo.x, mgeo.y);
+		g_debug("Moving window to %d %d", mgeo.x, mgeo.y);
+		gtk_window_move(GTK_WINDOW(self), mgeo.x, mgeo.y);
+#if DEBUG_DISPLAYS
+		g_warning(PPGTK_NAME" was compiled using the DEBUG flag. Will not show presenter in full size.");
+#else
+		g_debug("Setting display size to: %d %d", mgeo.width, mgeo.height);
+		gtk_widget_set_size_request(GTK_WIDGET(self), -1, -1);
+		gtk_window_set_default_size(GTK_WINDOW(self), mgeo.width, mgeo.height);
+		gtk_window_resize(GTK_WINDOW(self), mgeo.width, mgeo.height);
+#endif
+	}
+
+
 }
