@@ -1,7 +1,6 @@
 #ifndef PPGTK_PPGTK_H
 #define PPGTK_PPGTK_H
 
-
 #include <libintl.h>
 #define _(x) gettext(x)
 
@@ -13,9 +12,10 @@
 #include <ppgtk/slide.h>
 #include <ppgtk/presenter.h>
 #include <ppgtk/display.h>
+#include <ppgtk/timedialog.h>
 
 #define PPGTK_NAME "PPGtk"
-#define PPGTK_NAME_LING _("Pdf Presenter for GTK")
+#define PPGTK_NAME_LONG _("Pdf Presenter for GTK")
 
 #define PPGTK_VERSION_MAJOR 1
 #define PPGTK_VERSION_MINOR 0
