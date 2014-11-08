@@ -1,6 +1,10 @@
-# ppgtk v1.0beta
+# ppgtk
 
 A PDF presenter for GTK
+
+## Version
+
+0.1.0
 
 ## Description
 
@@ -22,6 +26,11 @@ PPGtk pre-requires GTK3 and Poppler libraries. You can install the libraries on 
 To compile PPGtk from scratch, the corresponding header files are required addtionally:
 
 `sudo apt-get install libgtk-3-dev libpoppler-glib-dev`
+`sudo apt-get install gob2 gcc make`
+
+A makefile is provided, thus one can compile PPGtk easily:
+
+`make ppgtk`
 
 ### ... prebuild
 
@@ -42,10 +51,28 @@ Additional features:
  * Cycle the fullscreen display through the available monitors
  * ...
 
+## Development
+
+PPGtk is mainly developed and tested on [Debian/GNU Linux](http://www.debian.org) Wheezy. 
+
+PPGtk is written using [GOB2](http://www.jirka.org/gob.html), a preprocessor that generates valid [GObject](http://developer.gnome.org/gobject/stable) C code. Afterwards, the C code is compiled as usual. If you want to hack on PPGtk, you should have a look on the [GOB2 Manual](http://www.jirka.org/gob2.1.html).
+
+### Documentation 
+
+[Doxygen](http://www.doxygen.org) is used for code documentation. To generate the documentation, the [gob-doc](http://github.com/landesfeind/gob-doc) tool is required as Doxygen input filter.
+
+## Author, Bugs, and Contribution
+
+PPGtk was written by [Manuel Landesfeind](http://www.landesfeind.de) and 
+[the code is hosted on Github](http://github.com/landesfeind/ppgtk).
+
+Help in improving PPGtk is very welcome. If you have any suggestions on PPGtk or
+want to help, please [issue a request on GitHub](https://github.com/landesfeind/ppgtk/issues).
+Bugs should also be reported as an issue on Github.
+
 ## See also
 
  * [GTK+ 3](https://developer.gnome.org/gtk3/stable): utilized widget toolkit
  * [Poppler library](http://poppler.freedesktop.org): utilized PDF library
  * [PDF Presenter Console](http://davvil.github.io/pdfpc): the tool PPGtk was adopted from
- * [Open PDF Presenter](https://code.google.com/p/open-pdf-presenter): a similar tool but using the QT library.
-
+ * [Open PDF Presenter](https://code.google.com/p/open-pdf-presenter): a similar tool but using the QT library
