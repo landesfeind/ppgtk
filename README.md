@@ -39,7 +39,7 @@ Also the compiler tools are required:
 
 A makefile is provided, thus one can compile **ppgtk** easily:
 
-`make **ppgtk**`
+`make ppgtk`
 
 ### ... prebuild
 
