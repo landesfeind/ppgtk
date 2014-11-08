@@ -1,9 +1,8 @@
 #!/usr/bin/env make
 
-ifneq ($(strip $(shell which colorgcc),""))
- CC:=$(strip $(shell which colorgcc));
+ifneq ($(strip $(shell which colorgcc)),)
+ CC:=$(strip $(shell which colorgcc))
 endif
-
 
 
 ## Some custom directories
@@ -12,7 +11,7 @@ DIRBUILD := build
 # A directory containing the GLib Object in GOB2 builder files
 DIRSRC := src
 
-CFLAGS=-g -DDEBUG -std=c99 -W -Wall -Wextra -fopenmp -I$(DIRBUILD) $(shell pkg-config --cflags glib-2.0 gobject-2.0 gio-2.0 gtk+-3.0 poppler)
+CFLAGS := -g -DDEBUG -std=c99 -W -Wall -Wextra -fopenmp -I$(DIRBUILD) $(shell pkg-config --cflags glib-2.0 gobject-2.0 gio-2.0 gtk+-3.0 poppler)
 export CFLAGS
 ifeq ($(PROFILE),yes)
 	override CFLAGS += -pg

@@ -19,7 +19,7 @@ class PPGtk:Display from Gtk:Window {
 
 	/**
 	  * The parent window that is used. This is usually a PPGtk:Presenter.
-	  */.
+	  */
 	private Gtk:Window *parent = NULL;
 	property OBJECT parent (
 			blurb = _("The parental window if this display"),
