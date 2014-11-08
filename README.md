@@ -51,14 +51,14 @@ Most features were adopted to from PDF Presenter Console:
 
  * Console view display vs. full screen presenter display
  * Freeze presenter display while skimming through the slides in the console display
- * Blank presenter display
+ * Blank presenter display (e.g. before starting the presentation or while changing the presentation)
  * Display the currently displayed slide and the number of slides in presenter view
  * Configure and display a countdown of the remaining time for the talk
 
 Additional features:
 
  * Cycle the fullscreen display through the available monitors
- * ...
+ * Change presentation "on-the-fly", i.e. without restarting the whole application (as with pdf-presenter-console)
 
 ## Development
 
@@ -73,10 +73,10 @@ Additional features:
 ## Author, Bugs, and Contribution
 
 **ppgtk** was written by [Manuel Landesfeind](http://www.landesfeind.de) and 
-[the code is hosted on Github](http://github.com/landesfeind/**ppgtk**).
+[the code is hosted on Github](http://github.com/landesfeind/ppgtk).
 
 Help in improving **ppgtk** is very welcome. If you have any suggestions on **ppgtk** or
-want to help, please [issue a request on GitHub](https://github.com/landesfeind/**ppgtk**/issues).
+want to help, please [issue a request on GitHub](https://github.com/landesfeind/ppgtk/issues).
 Bugs should also be reported as an issue on Github.
 
 ## See also
