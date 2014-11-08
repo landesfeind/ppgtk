@@ -3,15 +3,23 @@
 %}
 
 /**
+  * The fullscreen display for a single slide.
+  *
   * The PPGtk:Display is a undecorated window that will 
   * just display a single PDF page in full screen mode.
   * The PPGtk:Display will do a best guess to find a second 
   * monitor and will expand to that window.
   * If this is not possible, the it will present the slide in 
   * single monitor mode, that is overdrawing the main window.
+  *
+  * The PPGtk:Display is mainly controlled from the PPGtk:Presenter 
+  * who will set the page to display.
   */
 class PPGtk:Display from Gtk:Window {
 
+	/**
+	  * The parent window that is used. This is usually a PPGtk:Presenter.
+	  */.
 	private Gtk:Window *parent = NULL;
 	property OBJECT parent (
 			blurb = _("The parental window if this display"),
@@ -19,8 +27,17 @@ class PPGtk:Display from Gtk:Window {
 			flags = CONSTRUCT,
 			export, link);
 
+	/**
+	  * The currently used monitor to show the fullscreen display.
+	  * This can change to switch the PPGtk:Presenter and the PPGtk:Display
+	  * in case it is displayed on the wrong monitor.
+	  * @see PPGtk::Display::switch_monitor()
+	  */
 	private gint display_monitor = -1;
 
+	/**
+	  * The slide to display in this window.
+	  */
 	private PPGtk:Slide *slide = { ppgtk_slide_new() };
 
 	constructor(self){
@@ -29,19 +46,39 @@ class PPGtk:Display from Gtk:Window {
 		g_signal_connect(G_OBJECT(self), "show", G_CALLBACK(self_on_show), NULL);
 	}
 
-	public PPGtkDisplay *new(Gtk:Window *parent (check null type)) onerror NULL {
+	/**
+	  * Create a new display object. 
+	  * 
+	  * @param parent the parental window (not null).
+	  * @returns the newly created display.
+	  */
+	public PPGtk:Display *new(Gtk:Window *parent (check null type)) onerror NULL {
 		return GET_NEW_VARG("type", GTK_WINDOW_POPUP, "parent", parent, NULL);
 	}
 
+	/**
+	  * Check if the current setup has more than one monitor associated.
+	  * Only then, the presenter can fully perform.
+	  *
+	  * @return @c TRUE if there are more than one monitor.
+	  */
 	public gboolean is_valid(self){
 		GdkScreen *default_screen = gdk_screen_get_default();
 		return gdk_screen_get_n_monitors(default_screen) > 1;
 	}
 
+	/**
+	  * Set the page to present.
+	  *
+	  * @param page the page to display.
+	  */
 	public void present(self, Poppler:Page *page (check type)){
 		ppgtk_slide_set_page(selfp->slide, G_OBJECT(page));
 	}
 
+	/**
+	  * Switch the monitor if there are more than one.
+	  */
 	public void switch_monitor(self){
 		GdkScreen *default_screen = gdk_screen_get_default();
 		gint monitors = gdk_screen_get_n_monitors(default_screen);
@@ -55,6 +92,12 @@ class PPGtk:Display from Gtk:Window {
 	}
 	
 
+	/**
+	  * Callback to be executed when the \c show property of the Gtk:Widget parent changes.
+	  *
+	  * This will check for enough monitors and adjust to the required monitor size and
+	  * offset.
+	  */
 	private void on_show(Gtk:Widget *w, gpointer data){
 		PPGTK_UNUSED(data);
 		if( ! gtk_widget_get_visible(w) )
@@ -68,6 +111,13 @@ class PPGtk:Display from Gtk:Window {
 		gtk_widget_queue_draw(w);
 	}
 
+	/**
+	  * Determine the monitor to display the Gtk:Window on.
+	  * The PPGtk:Display will try to display itself on another
+	  * monitor than the PPGtk:Presenter.
+	  * If only one monitor is plugged in, than the display will be
+	  * shown in fullscreen and the PPGtk:Presenter is not shown.
+	  */
 	private void determine_monitor(self){
 		GdkScreen *default_screen = gdk_screen_get_default();
 		gint monitors = gdk_screen_get_n_monitors(default_screen);

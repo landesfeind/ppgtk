@@ -1,8 +1,10 @@
 #!/usr/bin/env make
 
-ifneq ($(shell which colorgcc),"")
-CC:=colorgcc
+ifneq ($(strip $(shell which colorgcc),""))
+ CC:=$(strip $(shell which colorgcc));
 endif
+
+
 
 ## Some custom directories
 # All C- and Object-Code will go in this directory

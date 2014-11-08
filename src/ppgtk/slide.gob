@@ -2,6 +2,9 @@
 #include <ppgtk/ppgtk.h>
 %}
 
+/**
+  * A widget to display a single page slide.
+  */
 class PPGtk:Slide from Gtk:Drawing:Area {
 	private Poppler:Page *page = NULL
 		unrefwith g_object_unref;
@@ -14,10 +17,19 @@ class PPGtk:Slide from Gtk:Drawing:Area {
 		g_signal_connect(G_OBJECT(self), "draw", G_CALLBACK(self_on_draw), NULL);
 	}
 
-	public PPGtkSlide *new(void){
+	/**
+	  * Creates a new slide object.
+	  */
+	public PPGtk:Slide *new(void){
 		return GET_NEW;
 	}
 
+	/**
+	  * Callback to be executed when the widget is required to be redrawn.
+	  *
+	  *
+	  * @see Gtk:Drawing:Area::on_draw
+	  */
 	private gboolean on_draw(GtkWidget *w, cairo_t *cr, gpointer data){
 		PPGTK_UNUSED(data);
 		Self *self = SELF(w);
@@ -55,6 +67,10 @@ class PPGtk:Slide from Gtk:Drawing:Area {
 		return TRUE;
 	}
 
+	/**
+	  * Callback to be executed when the page property of this slide changes.
+	  * This will ensure a redrawing of the Gtk:Drawing:Area.
+	  */
 	private void on_notify_page(G:Object *o, G:Param:Spec *spec, gpointer data){
 		PPGTK_UNUSED(spec);
 		PPGTK_UNUSED(data);
