@@ -75,5 +75,5 @@ Bugs should also be reported as an issue on Github.
 
  * [GTK+ 3](https://developer.gnome.org/gtk3/stable): utilized widget toolkit
  * [Poppler library](http://poppler.freedesktop.org): utilized PDF library
- * [PDF Presenter Console](http://davvil.github.io/pdfpc): the tool `ppgtk` was adopted from
+ * [PDF Presenter Console](http://davvil.github.io/pdfpc): the tool from which `ppgtk` was adopted
  * [Open PDF Presenter](https://code.google.com/p/open-pdf-presenter): a similar tool but using the QT library
