@@ -8,33 +8,34 @@ A PDF presenter for GTK
 
 ## Description
 
-PPGtk (short for "PDF Presenter for GTK") is a PDF presentation tool using GTK3. 
+`ppgtk` (short for "PDF Presenter for GTK") is a PDF presentation tool using GTK3. 
 The tool is mainly inspired by the [PDF Presenter Console](http://davvil.github.io/pdfpc).
 
-PPGtk supports setups with more than one monitor. In such setup, the presentation is shown in full screen mode on one of the monitors and a presenter console is shown on a second.
+`ppgtk` supports setups with more than one monitor. In such setup, the presentation is shown in full screen mode on one of the monitors and a presenter console is shown on a second.
 
 The [Poppler library](http://poppler.freedesktop.org) is utilized to read PDF documents and to render the slides into the graphical user interface.
 
 ## Installation
 
-PPGtk pre-requires GTK3 and Poppler libraries. You can install the libraries on Debian and Ubuntu easily:
+`ppgtk` pre-requires GTK3 and Poppler libraries. You can install the libraries on Debian and Ubuntu easily:
 
 `sudo apt-get install libgtk-3-0 libpoppler-glib8`
 
 ### ... from source
 
-To compile PPGtk from scratch, the corresponding header files are required addtionally:
+To compile `ppgtk` from scratch, the corresponding header files are required addtionally:
 
 `sudo apt-get install libgtk-3-dev libpoppler-glib-dev`
+
 `sudo apt-get install gob2 gcc make`
 
-A makefile is provided, thus one can compile PPGtk easily:
+A makefile is provided, thus one can compile `ppgtk` easily:
 
 `make ppgtk`
 
 ### ... prebuild
 
-Currently, PPGtk is beta software and binary files are not released so far.
+Currently, `ppgtk` is beta software and binary files are not released so far.
 
 ## Features
 
@@ -53,9 +54,9 @@ Additional features:
 
 ## Development
 
-PPGtk is mainly developed and tested on [Debian/GNU Linux](http://www.debian.org) Wheezy. 
+`ppgtk` is mainly developed and tested on [Debian/GNU Linux](http://www.debian.org) Wheezy. 
 
-PPGtk is written using [GOB2](http://www.jirka.org/gob.html), a preprocessor that generates valid [GObject](http://developer.gnome.org/gobject/stable) C code. Afterwards, the C code is compiled as usual. If you want to hack on PPGtk, you should have a look on the [GOB2 Manual](http://www.jirka.org/gob2.1.html).
+`ppgtk` is written using [GOB2](http://www.jirka.org/gob.html), a preprocessor that generates valid [GObject](http://developer.gnome.org/gobject/stable) C code. Afterwards, the C code is compiled as usual. If you want to hack on `ppgtk`, you should have a look on the [GOB2 Manual](http://www.jirka.org/gob2.1.html).
 
 ### Documentation 
 
@@ -63,10 +64,10 @@ PPGtk is written using [GOB2](http://www.jirka.org/gob.html), a preprocessor tha
 
 ## Author, Bugs, and Contribution
 
-PPGtk was written by [Manuel Landesfeind](http://www.landesfeind.de) and 
+`ppgtk` was written by [Manuel Landesfeind](http://www.landesfeind.de) and 
 [the code is hosted on Github](http://github.com/landesfeind/ppgtk).
 
-Help in improving PPGtk is very welcome. If you have any suggestions on PPGtk or
+Help in improving `ppgtk` is very welcome. If you have any suggestions on `ppgtk` or
 want to help, please [issue a request on GitHub](https://github.com/landesfeind/ppgtk/issues).
 Bugs should also be reported as an issue on Github.
 
@@ -74,5 +75,5 @@ Bugs should also be reported as an issue on Github.
 
  * [GTK+ 3](https://developer.gnome.org/gtk3/stable): utilized widget toolkit
  * [Poppler library](http://poppler.freedesktop.org): utilized PDF library
- * [PDF Presenter Console](http://davvil.github.io/pdfpc): the tool PPGtk was adopted from
+ * [PDF Presenter Console](http://davvil.github.io/pdfpc): the tool `ppgtk` was adopted from
  * [Open PDF Presenter](https://code.google.com/p/open-pdf-presenter): a similar tool but using the QT library
