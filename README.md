@@ -19,7 +19,7 @@ The [Poppler library](http://poppler.freedesktop.org) is utilized to read PDF do
 
 The following screenshot shows the main user interface - the console window:
 
-![ppgtk screenshot](images/ppgtk_screenshot.png "Screenshot of the ppgtk console")
+![ppgtk screenshot](images/ppgtk_screenshot.png?raw=true "Screenshot of the ppgtk console")
 
 ## Installation
 
