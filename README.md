@@ -15,6 +15,12 @@ The tool is mainly inspired by the [PDF Presenter Console](http://davvil.github.
 
 The [Poppler library](http://poppler.freedesktop.org) is utilized to read PDF documents and to render the slides into the graphical user interface.
 
+## Screenshot
+
+The following screenshot shows the main user interface - the console window:
+
+![ppgtk screenshot](images/ppgtk_screenshot.png "Screenshot of the ppgtk console")
+
 ## Installation
 
 **ppgtk** pre-requires GTK3 and Poppler libraries. You can install the libraries on Debian and Ubuntu easily:
