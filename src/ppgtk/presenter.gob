@@ -27,7 +27,6 @@ class PPGtk:Presenter from Gtk:Application:Window {
 	private Gtk:Widget *filechooser = NULL
 		unrefwith g_object_unref;
 
-	// FIXME: Format the time
 	/**
 	  * An object to access the document.
 	  */
@@ -293,12 +292,11 @@ class PPGtk:Presenter from Gtk:Application:Window {
 		if( gtk_widget_get_visible(GTK_WIDGET(selfp->display)) ){
 			g_debug("Switching presenter mode off");
 			gtk_widget_hide(GTK_WIDGET(selfp->display));
-			gtk_window_unfullscreen(GTK_WINDOW(self));
 		}
 		else {
 			g_debug("Switching presenter mode on");
 			gtk_widget_show_all(GTK_WIDGET(selfp->display));
-			gtk_window_fullscreen(GTK_WINDOW(self));
+			gtk_window_maximize(GTK_WINDOW(self));
 		}
 	}
 
