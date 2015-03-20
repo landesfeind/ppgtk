@@ -140,7 +140,7 @@ class PPGtk:Document from G:Object {
 			return FALSE;
 		if( page_idx >= self_num_pages(self) )
 			return FALSE;
-		g_debug("Drawing page %d to widget", page_idx);
+		//g_debug("Drawing page %d to widget", page_idx);
 		gdouble widget_width  = (gdouble)gtk_widget_get_allocated_width(w);
 		gdouble widget_height = (gdouble)gtk_widget_get_allocated_height(w);
 

@@ -372,8 +372,6 @@ class PPGtk:Presenter from Gtk:Application:Window {
 		//g_debug("Blank action with state: %s", v == NULL ? "NULLVARIANT" : g_variant_get_boolean(v) ? "true" :"false");
 		v = g_variant_new("b", ! g_variant_get_boolean(v));
 		g_action_change_state(G_ACTION(a), v);
-
-		ppgtk_slide_set_blank(selfp->slide_presenter, ! g_variant_get_boolean(v));
 	}
 
 	private void on_action_freeze(G:Simple:Action *a, G:Variant *v, gpointer data){
@@ -386,19 +384,20 @@ class PPGtk:Presenter from Gtk:Application:Window {
 		v = g_variant_new("b", ! g_variant_get_boolean(v));
 		g_action_change_state(G_ACTION(a), v);
 
-		ppgtk_slide_set_blank(selfp->slide_presenter, ! g_variant_get_boolean(v));
 	}
 
 	private void on_change_state_freeze(G:Simple:Action *a, G:Variant *v, gpointer data){
-		PPGTK_UNUSED(data);
+		Self *self = SELF(data);
 		g_debug("Changing freeze state to: %s", g_variant_get_boolean(v) ? "true" : "false");
 		g_simple_action_set_state(a, v);
+		ppgtk_slide_set_freeze(selfp->slide_presenter, g_variant_get_boolean(v));
 	}
 
 	private void on_change_state_blank(G:Simple:Action *a, G:Variant *v, gpointer data){
-		PPGTK_UNUSED(data);
+		Self *self = SELF(data);
 		g_debug("Changing blank state to: %s", g_variant_get_boolean(v) ? "true" : "false");
 		g_simple_action_set_state(a, v);
+		ppgtk_slide_set_blank(selfp->slide_presenter, g_variant_get_boolean(v));
 	}
 
 	/**
