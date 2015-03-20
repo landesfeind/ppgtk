@@ -1,5 +1,9 @@
 %h{
 #include <ppgtk/ppgtk.h>
+#include <ppgtk/document.h>
+#include <ppgtk/slide.h>
+#include <ppgtk/display.h>
+#include <ppgtk/timedialog.h>
 
 #define PPGTK_ACTION_OPEN "open"
 #define PPGTK_ACTION_NEXT "next"
@@ -14,21 +18,13 @@
 
 class PPGtk:Presenter from Gtk:Application:Window {
 
+	/**
+	  * The file chooser to open PDF documents. Keep it to 
+	  * reuse it if another file is opened
+	  */
 	private Gtk:Widget *filechooser = NULL
 		unrefwith g_object_unref;
 	
-	/**
-	  * The file from which the document is loaded and displayed.
-	  * Should be set when constructing the presenter. If not given,
-	  * the presenter will just show blank data.
-	  */
-	private G:File *file = NULL
-		unrefwith g_object_unref;
-	property OBJECT file (
-				nick = _("File"),
-				object_type = G:File,
-				export, link);
-
 	/**
 	  * The time the presenter has to finish
 	  */
@@ -44,45 +40,32 @@ class PPGtk:Presenter from Gtk:Application:Window {
 	/**
 	  * An object to access the document.
 	  */
-	private Poppler:Document *document = NULL
+	private PPGtk:Document *document = NULL
 		unrefwith g_object_unref;
+	property OBJECT document (
+			object_type = PPGtk:Document,
+			export, link);
 		
 	private PPGtk:Display *display = NULL
 		destroywith gtk_widget_destroy;
-	private PPGtk:Slide *draw_current = { ppgtk_slide_new() };
-	private PPGtk:Slide *draw_next    = { ppgtk_slide_new() };
+	/** The PPGtk:Slide that displays the current page in the console */
+	private PPGtk:Slide *slide_current   = { ppgtk_slide_new() };
+	/** The PPGtk:Slide that displays the next page in the console */
+	private PPGtk:Slide *slide_next      = { ppgtk_slide_new_with_offset(1) };
+	/** The PPGtk:Slide that displays the current page in the presenter */
+	private PPGtk:Slide *slide_presenter = { ppgtk_slide_new() };
+
 	private Gtk:Drawing:Area *draw_counter = { (GtkDrawingArea *)gtk_drawing_area_new(); };
 	private Gtk:Drawing:Area *draw_time = { (GtkDrawingArea *)gtk_drawing_area_new(); };
-
 
 	private Gtk:Button *button_prev = { (GtkButton *)gtk_button_new() };
 	private Gtk:Button *button_next = { (GtkButton *)gtk_button_new() };
 	private Gtk:Toggle:Button *tbutton_freeze = { (GtkToggleButton *)gtk_check_button_new_with_mnemonic(_("_Freeze")) };
 	private Gtk:Toggle:Button *tbutton_blank  = { (GtkToggleButton *)gtk_check_button_new_with_mnemonic(_("_Blank")) };
 
-	private gint slide = 0;
-	property INT slide (
-				nick = "Current slide",
-				default_value = 0,
-				minimum = 0,
-				export)
-		set {
-			gint index = g_value_get_int(VAL);
-			if( ! selfp->document ){
-				index = 0;
-			}
-			else if( index >= poppler_document_get_n_pages(selfp->document) ){
-				index = poppler_document_get_n_pages(selfp->document) - 1;
-			}
-			selfp->slide = index;
-		}
-		get { 
-			g_value_set_int(VAL, selfp->slide); 
-		};
-
 
 	constructor(self){
-		selfp->display = ppgtk_display_new(GTK_WINDOW(self));
+		selfp->display = ppgtk_display_new(GTK_WINDOW(self), selfp->slide_presenter);
 		self_init_actions(self);
 		gtk_window_set_title(GTK_WINDOW(self), PPGTK_NAME);
 
@@ -95,10 +78,10 @@ class PPGtk:Presenter from Gtk:Application:Window {
 		GtkGrid *text_grid = (GtkGrid *)gtk_grid_new();
 		g_object_set(G_OBJECT(text_grid), "hexpand", TRUE, "vexpand", FALSE, "margin-top", 1, NULL);
 
-		gtk_widget_set_size_request(GTK_WIDGET(selfp->draw_current), 300, 300);
-		g_object_set(G_OBJECT(selfp->draw_current), "hexpand", TRUE, "vexpand", TRUE, "margin-right", 1, NULL);
-		gtk_widget_set_size_request(GTK_WIDGET(selfp->draw_next), 100, 100);
-		g_object_set(G_OBJECT(selfp->draw_next), "hexpand", TRUE, "vexpand", TRUE, "margin-bottom", 1, NULL);
+		gtk_widget_set_size_request(GTK_WIDGET(selfp->slide_current), 300, 300);
+		g_object_set(G_OBJECT(selfp->slide_current), "hexpand", TRUE, "vexpand", TRUE, "margin-right", 1, NULL);
+		gtk_widget_set_size_request(GTK_WIDGET(selfp->slide_next), 100, 100);
+		g_object_set(G_OBJECT(selfp->slide_next), "hexpand", TRUE, "vexpand", TRUE, "margin-bottom", 1, NULL);
 
 
 		g_object_set(G_OBJECT(text_grid          ), "margin-top", 1, NULL);
@@ -128,22 +111,19 @@ class PPGtk:Presenter from Gtk:Application:Window {
 		gtk_actionable_set_action_name(GTK_ACTIONABLE(selfp->tbutton_blank), "win."PPGTK_ACTION_BLANK);
 
 
-		gtk_grid_attach(grid, GTK_WIDGET(selfp->draw_current ), 0, 0, 1, 2);
-		gtk_grid_attach(grid, GTK_WIDGET(selfp->draw_next    ), 1, 0, 1, 1);
-		gtk_grid_attach(grid, GTK_WIDGET(text_grid           ), 0, 2, 2, 1);
-		gtk_grid_attach(grid, GTK_WIDGET(button_grid         ), 0, 3, 2, 1);
+		gtk_grid_attach(grid, GTK_WIDGET(selfp->slide_current ), 0, 0, 1, 2);
+		gtk_grid_attach(grid, GTK_WIDGET(selfp->slide_next    ), 1, 0, 1, 1);
+		gtk_grid_attach(grid, GTK_WIDGET(text_grid            ), 0, 2, 2, 1);
+		gtk_grid_attach(grid, GTK_WIDGET(button_grid          ), 0, 3, 2, 1);
 
-		g_signal_connect(G_OBJECT(selfp->draw_counter), "draw", G_CALLBACK(&self_on_draw_counter), self);
-		g_signal_connect(G_OBJECT(selfp->draw_time   ), "draw", G_CALLBACK(&self_on_draw_time), self);
-		g_signal_connect(G_OBJECT(self), "notify::slide", G_CALLBACK(&self_on_notify_slide), NULL);
-		g_signal_connect(G_OBJECT(self), "notify::file", G_CALLBACK(&self_on_notify_file), NULL);
+
+		//g_signal_connect(G_OBJECT(selfp->draw_counter), "draw", G_CALLBACK(&self_on_draw_counter), self);
+		//g_signal_connect(G_OBJECT(selfp->draw_time   ), "draw", G_CALLBACK(&self_on_draw_time), self);
+		g_signal_connect(G_OBJECT(self), "notify::document", G_CALLBACK(&self_on_notify_document), NULL);
 	}
 
 	dispose(self){
-		gchar *f = selfp->file ? g_file_get_path(selfp->file) : NULL;
-		g_debug("Disposing window to display: %s", f);
-		if(f)
-			g_free(f);
+		g_debug("Disposing window to display");
 	}
 
 	private void init_actions(self){
@@ -151,11 +131,6 @@ class PPGtk:Presenter from Gtk:Application:Window {
 
 		action = g_simple_action_new(PPGTK_ACTION_OPEN, NULL);
 		g_signal_connect(G_OBJECT(action), "activate", G_CALLBACK(self_on_action_open), self);
-		g_simple_action_set_enabled(action, TRUE);
-		g_action_map_add_action(G_ACTION_MAP(self), G_ACTION(action));
-
-		action = g_simple_action_new("open-new", NULL);
-		g_signal_connect(G_OBJECT(action), "activate", G_CALLBACK(self_on_action_open_new_window), self);
 		g_simple_action_set_enabled(action, TRUE);
 		g_action_map_add_action(G_ACTION_MAP(self), G_ACTION(action));
 
@@ -223,16 +198,40 @@ class PPGtk:Presenter from Gtk:Application:Window {
 	  * opens the given file.
 	  */
 	public PPGtkPresenter *new_with_file(Gtk:Application *app (check null type), G:File *pdf_file (check null type)){
-		return GET_NEW_VARG("file", pdf_file, "application", app, NULL);
+		Self *self = self_new(app);
+		self_open_file_single(self, pdf_file);
+		return self;
 	}
+
+
+
+
+	public gboolean set_document_from_file(self,  G:File *pdf_file (check null type)) onerror FALSE {
+		GError *error = NULL;
+		PPGtkDocument *doc = ppgtk_document_new_from_file(pdf_file, NULL, &error);
+		if( ! doc || error ){
+			self_display_error(self, error->message);
+			g_error_free(error);
+			if( doc )
+				g_object_unref(doc);
+			return FALSE;
+		}
+		
+		self_set_document(self, G_OBJECT(doc));
+		g_object_unref(doc);	
+		return TRUE;
+	}
+
+
 
 	/**
 	  * Reset the presentation. This results in setting the current slide to the
 	  * first slide and stopping the elapsed timer.
 	  */
 	public void reset(self){
-		self_set_slide(self, 0);
-		gtk_widget_queue_draw(GTK_WIDGET(self));
+		// FIXME:
+		// - reset presentation timer
+		ppgtk_document_set_current_page(selfp->document, 0);
 	}
 
 	/**
@@ -282,112 +281,58 @@ class PPGtk:Presenter from Gtk:Application:Window {
 		return;
 	}
 
-	private void draw_text(Gtk:Widget *w, cairo_t *cr, gchar *text){
-		gdouble widget_width  = (gdouble)gtk_widget_get_allocated_width(w);
-		gdouble widget_height = (gdouble)gtk_widget_get_allocated_height(w);
-
-		cairo_move_to(cr, 0, 0);
-		cairo_line_to(cr, widget_width, 0);
-		cairo_line_to(cr, widget_width, widget_height);
-		cairo_line_to(cr, 0, widget_height);
-		cairo_set_source_rgb(cr, 0, 0, 0);
-		cairo_stroke(cr);
-		
-		gint text_width, text_height;
-		PangoLayout *layout = pango_cairo_create_layout(cr);
-		pango_layout_set_text(layout, text, -1);
-		pango_layout_get_size(layout, &text_width, &text_height);
-		text_width  /= PANGO_SCALE;
-		text_height /= PANGO_SCALE;
-
-		gdouble scalew = widget_width / text_width ;
-		gdouble scaleh = widget_height / text_height;
-		gdouble scale = scalew < scaleh ? scalew : scaleh;
-		scale *= 0.9;
-		cairo_move_to(cr, (widget_width - (text_width*scale))/2, (widget_height - (text_height*scale))/2);
-		//cairo_move_to(cr, 0, 0);
-		cairo_scale(cr, scale, scale);
-		pango_cairo_show_layout(cr, layout);
-	}
-
-
-	private gboolean on_draw_counter(GtkWidget *w, cairo_t *cr, gpointer data){
-		gchar buffer[25];
-		Self *self = SELF(data);
-		self_ensure_document(self);
-
-		if( ! selfp->document )
-			return TRUE;
-
-		sprintf(buffer, "%d / %d", selfp->slide + 1, poppler_document_get_n_pages(selfp->document));
-		self_draw_text(w, cr, buffer);
-		return TRUE;
-	}
-
-	private gboolean on_draw_time(GtkWidget *w, cairo_t *cr, gpointer data){
-		Self *self = SELF(data);
-		self_ensure_document(self);
-		if( ! selfp->document )
-			return TRUE;
-
-		gchar *text = self_format_remaining_time(self, NULL);
-		self_draw_text(w, cr, text);
-		return TRUE;
-	}
-
-	/** Notify callback when the slide parameter of the presenter changes. **/
-	private void on_notify_slide(G:Object *s, G:Param:Spec *pspec, gpointer data){
-		PPGTK_UNUSED(pspec);
-		PPGTK_UNUSED(data);
-		Self *self = SELF(s);
-		
-		self_ensure_document(self);
-		if( ! selfp->document )
-			return;
-
-		gtk_widget_queue_draw(GTK_WIDGET(selfp->draw_counter));
-
-		PopplerPage *p;
-		p = poppler_document_get_page(selfp->document, selfp->slide);
-		if( ! p ){
-			g_warning("Can not get document page %d", selfp->slide);
-		}
-		ppgtk_slide_set_page(PPGTK_SLIDE(selfp->draw_current), G_OBJECT(p));
-
-		if( ! self_get_freeze(self) && ! self_get_blank(self) && selfp->display ){
-			ppgtk_display_present(selfp->display, p);
-		}
-
-		p = poppler_document_get_page(selfp->document, selfp->slide + 1);
-		if( ! p ){
-			g_warning("Can not get document page %d", selfp->slide +1);
-		}
-		ppgtk_slide_set_page(PPGTK_SLIDE(selfp->draw_next), G_OBJECT(p));
-
-
-		// Update actions to be sensitive
-		GAction *a = NULL;
-		a = g_action_map_lookup_action(G_ACTION_MAP(self), PPGTK_ACTION_PREVIOUS);
-		PPGTK_OBJECT_IS(a, G_TYPE_SIMPLE_ACTION);
-		g_simple_action_set_enabled(G_SIMPLE_ACTION(a), selfp->document != NULL && selfp->slide > 0);
-
-		a = g_action_map_lookup_action(G_ACTION_MAP(self), PPGTK_ACTION_NEXT);
-		PPGTK_OBJECT_IS(a, G_TYPE_SIMPLE_ACTION);
-		g_simple_action_set_enabled(G_SIMPLE_ACTION(a), selfp->document != NULL &&
-				selfp->slide +1 < poppler_document_get_n_pages(selfp->document));
-	}
-
-	/** Notify callback when the file changes **/
-	private void on_notify_file(G:Object *s, G:Param:Spec *pspec, gpointer data){
-		PPGTK_UNUSED(pspec);
-		PPGTK_UNUSED(data);
-		Self *self = SELF(s);
-		if( selfp->document ){
-			g_object_unref(selfp->document);
-			selfp->document = NULL;
-		}
-		self_reset(self);
-	}
+//	private void draw_text(Gtk:Widget *w, cairo_t *cr, gchar *text){
+//		gdouble widget_width  = (gdouble)gtk_widget_get_allocated_width(w);
+//		gdouble widget_height = (gdouble)gtk_widget_get_allocated_height(w);
+//
+//		cairo_move_to(cr, 0, 0);
+//		cairo_line_to(cr, widget_width, 0);
+//		cairo_line_to(cr, widget_width, widget_height);
+//		cairo_line_to(cr, 0, widget_height);
+//		cairo_set_source_rgb(cr, 0, 0, 0);
+//		cairo_stroke(cr);
+//		
+//		gint text_width, text_height;
+//		PangoLayout *layout = pango_cairo_create_layout(cr);
+//		pango_layout_set_text(layout, text, -1);
+//		pango_layout_get_size(layout, &text_width, &text_height);
+//		text_width  /= PANGO_SCALE;
+//		text_height /= PANGO_SCALE;
+//
+//		gdouble scalew = widget_width / text_width ;
+//		gdouble scaleh = widget_height / text_height;
+//		gdouble scale = scalew < scaleh ? scalew : scaleh;
+//		scale *= 0.9;
+//		cairo_move_to(cr, (widget_width - (text_width*scale))/2, (widget_height - (text_height*scale))/2);
+//		//cairo_move_to(cr, 0, 0);
+//		cairo_scale(cr, scale, scale);
+//		pango_cairo_show_layout(cr, layout);
+//	}
+//
+//
+//	private gboolean on_draw_counter(GtkWidget *w, cairo_t *cr, gpointer data){
+//		gchar buffer[25];
+//		Self *self = SELF(data);
+//		self_ensure_document(self);
+//
+//		if( ! selfp->document )
+//			return TRUE;
+//
+//		sprintf(buffer, "%d / %d", selfp->slide + 1, poppler_document_get_n_pages(selfp->document));
+//		self_draw_text(w, cr, buffer);
+//		return TRUE;
+//	}
+//
+//	private gboolean on_draw_time(GtkWidget *w, cairo_t *cr, gpointer data){
+//		Self *self = SELF(data);
+//		self_ensure_document(self);
+//		if( ! selfp->document )
+//			return TRUE;
+//
+//		gchar *text = self_format_remaining_time(self, NULL);
+//		self_draw_text(w, cr, text);
+//		return TRUE;
+//	}
 
 	/** Action callback when the "close" action is activated **/
 	private void on_action_close(G:Action *a, G:Variant *param, gpointer data){
@@ -425,10 +370,8 @@ class PPGtk:Presenter from Gtk:Application:Window {
 	private void on_action_reset(G:Action *a, G:Variant *param, gpointer data){
 		PPGTK_UNUSED(a);
 		PPGTK_UNUSED(param);
-		Self *self = SELF(data);
-		self_set_slide(self, 0);
-		self_set_freeze(self, FALSE);
-		selfp->presentation_start_time = -1;
+		g_return_if_fail( PPGTK_OBJECT_IS(data, TYPE_SELF) );
+		self_reset(SELF(data));
 	}
 
 	/**
@@ -437,10 +380,9 @@ class PPGtk:Presenter from Gtk:Application:Window {
 	private void on_action_previous(G:Action *a, G:Variant *param, gpointer data){
 		PPGTK_UNUSED(a);
 		PPGTK_UNUSED(param);
+		g_return_if_fail( PPGTK_OBJECT_IS(data, TYPE_SELF) );
 		Self *self = SELF(data);
-		if( selfp->slide <= 0 )
-			return;
-		self_set_slide(self, self_get_slide(self) - 1 );
+		ppgtk_document_previous_page(selfp->document);
 	}
 
 	/**
@@ -449,14 +391,10 @@ class PPGtk:Presenter from Gtk:Application:Window {
 	private void on_action_next(G:Action *a, G:Variant *param, gpointer data){
 		PPGTK_UNUSED(a);
 		PPGTK_UNUSED(param);
+		g_return_if_fail( PPGTK_OBJECT_IS(data, TYPE_SELF) );
 		Self *self = SELF(data);
-		if( selfp->slide + 1 >= poppler_document_get_n_pages(selfp->document) )
-			return;
-		self_set_slide(self, self_get_slide(self) + 1 );
-		if( selfp->presentation_start_time < 0 ){
-			selfp->presentation_start_time = g_get_monotonic_time();
-			g_timeout_add(1000, self_on_idle_update_time, self);
-		}
+		ppgtk_document_next_page(selfp->document);
+		// FIXME: start presentation time
 	}
 
 	/**
@@ -485,13 +423,7 @@ class PPGtk:Presenter from Gtk:Application:Window {
 	private void on_action_open(G:Simple:Action *a, G:Variant *v, gpointer data){
 		PPGTK_UNUSED(a);
 		PPGTK_UNUSED(v);
-		self_open_file(SELF(data), FALSE);
-	}
-
-	private void on_action_open_new_window(G:Simple:Action *a, G:Variant *v, gpointer data){
-		PPGTK_UNUSED(a);
-		PPGTK_UNUSED(v);
-		self_open_file(SELF(data), TRUE);
+		self_open_file(SELF(data));
 	}
 
 	private void on_action_blank(G:Simple:Action *a, G:Variant *v, gpointer data){
@@ -504,12 +436,7 @@ class PPGtk:Presenter from Gtk:Application:Window {
 		v = g_variant_new("b", ! g_variant_get_boolean(v));
 		g_action_change_state(G_ACTION(a), v);
 
-		if( self_get_blank(self) ){
-			ppgtk_display_present(selfp->display, NULL);
-		}
-		else {
-			self_set_slide(self, selfp->slide);
-		}
+		ppgtk_slide_set_blank(selfp->slide_presenter, ! g_variant_get_boolean(v));
 	}
 
 	private void on_action_freeze(G:Simple:Action *a, G:Variant *v, gpointer data){
@@ -522,16 +449,13 @@ class PPGtk:Presenter from Gtk:Application:Window {
 		v = g_variant_new("b", ! g_variant_get_boolean(v));
 		g_action_change_state(G_ACTION(a), v);
 
-		if( ! self_get_freeze(self) ){
-			self_set_slide(self, selfp->slide);
-		}
+		ppgtk_slide_set_blank(selfp->slide_presenter, ! g_variant_get_boolean(v));
 	}
 
 	private void on_change_state_freeze(G:Simple:Action *a, G:Variant *v, gpointer data){
-		Self *self = SELF(data);
+		PPGTK_UNUSED(data);
 		g_debug("Changing freeze state to: %s", g_variant_get_boolean(v) ? "true" : "false");
 		g_simple_action_set_state(a, v);
-		self_set_slide(self, selfp->slide);
 	}
 
 	private void on_change_state_blank(G:Simple:Action *a, G:Variant *v, gpointer data){
@@ -551,7 +475,7 @@ class PPGtk:Presenter from Gtk:Application:Window {
 					GTK_DIALOG_MODAL | GTK_DIALOG_DESTROY_WITH_PARENT, 
 					type, 
 					GTK_BUTTONS_OK,
-					message->str);
+					"%s", message->str);
 		gtk_widget_show_all(GTK_WIDGET(dialog));
 		gtk_dialog_run(GTK_DIALOG(dialog));
 		gtk_widget_destroy(GTK_WIDGET(dialog));
@@ -594,78 +518,78 @@ class PPGtk:Presenter from Gtk:Application:Window {
 		va_end(vl);
 	}
 
-	/**
-	  * Tries to open the file and to load the poppler object.
-	  * Returns true when the file is successfully opened. 
-	  */
-	private gboolean ensure_document(self){
-		if( selfp->document )
-			return TRUE;
+//	/**
+//	  * Tries to open the file and to load the poppler object.
+//	  * Returns true when the file is successfully opened. 
+//	  */
+//	private gboolean ensure_document(self){
+//		if( selfp->document )
+//			return TRUE;
+//
+//		if( ! selfp->file )
+//			return FALSE;
+//
+//		if( ! g_file_query_exists(selfp->file, NULL) ){
+//			self_display_error(self, _("File does not exist"));
+//			return FALSE;
+//		}
+//
+//		if( g_file_query_file_type(selfp->file, G_FILE_QUERY_INFO_NONE, NULL) != G_FILE_TYPE_REGULAR ){
+//			self_display_error(self, _("Not a regular file"));
+//			return FALSE;
+//		}
+//
+//		GError *error = NULL;
+//		gchar *file = g_file_get_uri(selfp->file);
+//		selfp->document = poppler_document_new_from_file(file, NULL, &error);
+//		g_free(file);
+//		if( error ){
+//			g_error(error->message);
+//			self_display_error(self, error->message);
+//			return FALSE;
+//		}
+//		if( ! selfp->document ){
+//			self_display_error(self, _("Can not open document for unkown reason"));
+//			return FALSE;
+//		}
+//		
+//		g_debug("Displaying document with %d slides", poppler_document_get_n_pages(selfp->document));
+//		
+//		// Make title
+//		gchar *title = poppler_document_get_title(selfp->document);
+//		GString *titlen = g_string_new(title);
+//		g_string_append(titlen, " - ");
+//		g_string_append(titlen, PPGTK_NAME);
+//		gtk_window_set_title(GTK_WINDOW(self), titlen->str);
+//		g_string_free(titlen, TRUE);
+//		g_free(title);
+//
+//		self_set_slide(self, 0);
+//	
+//		// Enable actions
+//		GAction *a;
+//		a = g_action_map_lookup_action(G_ACTION_MAP(self), PPGTK_ACTION_NEXT);
+//		g_simple_action_set_enabled(G_SIMPLE_ACTION(a), TRUE);
+//		a = g_action_map_lookup_action(G_ACTION_MAP(self), PPGTK_ACTION_PREVIOUS);
+//		g_simple_action_set_enabled(G_SIMPLE_ACTION(a), TRUE);
+//		a = g_action_map_lookup_action(G_ACTION_MAP(self), PPGTK_ACTION_FREEZE);
+//		g_simple_action_set_enabled(G_SIMPLE_ACTION(a), TRUE);
+//		a = g_action_map_lookup_action(G_ACTION_MAP(self), PPGTK_ACTION_BLANK);
+//		g_simple_action_set_enabled(G_SIMPLE_ACTION(a), TRUE);
+//		a = g_action_map_lookup_action(G_ACTION_MAP(self), PPGTK_ACTION_PRESENT);
+//		g_simple_action_set_enabled(G_SIMPLE_ACTION(a), TRUE);
+//		a = g_action_map_lookup_action(G_ACTION_MAP(self), PPGTK_ACTION_RESET);
+//		g_simple_action_set_enabled(G_SIMPLE_ACTION(a), TRUE);
+//		a = g_action_map_lookup_action(G_ACTION_MAP(self), PPGTK_ACTION_SWITCH);
+//		g_simple_action_set_enabled(G_SIMPLE_ACTION(a), TRUE);
+//
+//
+//		return TRUE;
+//	}
+//
+//
 
-		if( ! selfp->file )
-			return FALSE;
-
-		if( ! g_file_query_exists(selfp->file, NULL) ){
-			self_display_error(self, _("File does not exist"));
-			return FALSE;
-		}
-
-		if( g_file_query_file_type(selfp->file, G_FILE_QUERY_INFO_NONE, NULL) != G_FILE_TYPE_REGULAR ){
-			self_display_error(self, _("Not a regular file"));
-			return FALSE;
-		}
-
-		GError *error = NULL;
-		gchar *file = g_file_get_uri(selfp->file);
-		selfp->document = poppler_document_new_from_file(file, NULL, &error);
-		g_free(file);
-		if( error ){
-			g_error(error->message);
-			self_display_error(self, error->message);
-			return FALSE;
-		}
-		if( ! selfp->document ){
-			self_display_error(self, _("Can not open document for unkown reason"));
-			return FALSE;
-		}
-		
-		g_debug("Displaying document with %d slides", poppler_document_get_n_pages(selfp->document));
-		
-		// Make title
-		gchar *title = poppler_document_get_title(selfp->document);
-		GString *titlen = g_string_new(title);
-		g_string_append(titlen, " - ");
-		g_string_append(titlen, PPGTK_NAME);
-		gtk_window_set_title(GTK_WINDOW(self), titlen->str);
-		g_string_free(titlen, TRUE);
-		g_free(title);
-
-		self_set_slide(self, 0);
-	
-		// Enable actions
-		GAction *a;
-		a = g_action_map_lookup_action(G_ACTION_MAP(self), PPGTK_ACTION_NEXT);
-		g_simple_action_set_enabled(G_SIMPLE_ACTION(a), TRUE);
-		a = g_action_map_lookup_action(G_ACTION_MAP(self), PPGTK_ACTION_PREVIOUS);
-		g_simple_action_set_enabled(G_SIMPLE_ACTION(a), TRUE);
-		a = g_action_map_lookup_action(G_ACTION_MAP(self), PPGTK_ACTION_FREEZE);
-		g_simple_action_set_enabled(G_SIMPLE_ACTION(a), TRUE);
-		a = g_action_map_lookup_action(G_ACTION_MAP(self), PPGTK_ACTION_BLANK);
-		g_simple_action_set_enabled(G_SIMPLE_ACTION(a), TRUE);
-		a = g_action_map_lookup_action(G_ACTION_MAP(self), PPGTK_ACTION_PRESENT);
-		g_simple_action_set_enabled(G_SIMPLE_ACTION(a), TRUE);
-		a = g_action_map_lookup_action(G_ACTION_MAP(self), PPGTK_ACTION_RESET);
-		g_simple_action_set_enabled(G_SIMPLE_ACTION(a), TRUE);
-		a = g_action_map_lookup_action(G_ACTION_MAP(self), PPGTK_ACTION_SWITCH);
-		g_simple_action_set_enabled(G_SIMPLE_ACTION(a), TRUE);
-
-
-		return TRUE;
-	}
-
-
-
-	public void open_file(self, gboolean new_window){
+	public void open_file(self){
 		if( ! selfp->filechooser ){
 			selfp->filechooser = gtk_file_chooser_dialog_new(_("Open PDF Presentation"),
 				NULL, GTK_FILE_CHOOSER_ACTION_OPEN,
@@ -695,12 +619,12 @@ class PPGtk:Presenter from Gtk:Application:Window {
 		if( ! list )
 			return;
 		g_debug("Running file chooser dialog returned with %d files", (gint)g_slist_length(list));
-
+	
 		for(guint i = 0; i < g_slist_length(list); i++){
 			gpointer data = g_slist_nth_data(list, i);
 			if( data ){
 				GFile *f = g_file_new_for_path((gchar *)data);
-				self_open_file_single(self, f, new_window);
+				self_open_file_single(self, f);
 				g_object_unref(f);
 			}
 		}
@@ -708,16 +632,16 @@ class PPGtk:Presenter from Gtk:Application:Window {
 		g_slist_free_full(list, g_free);
 	}
 	
-	public void open_file_single(self, G:File *file (check null type), gboolean new_window){
-		g_debug("Opening %swindow to show document %s", new_window ? "new " : "", g_file_get_path(file));
-		if( new_window ){ 
+	public void open_file_single(self, G:File *file (check null type)){
+		g_debug("Opening %swindow to show document %s", selfp->document ? "new " : "", g_file_get_path(file));
+		if( selfp->document ){ 
 			GtkApplication *app = gtk_window_get_application(GTK_WINDOW(self));
 			Self *window = self_new_with_file(app, file);
 			gtk_widget_show_all(GTK_WIDGET(window));
 			gtk_application_add_window(GTK_APPLICATION(self), GTK_WINDOW(window));
 		}
 		else {
-			self_set_file(self, G_OBJECT(file));
+			self_set_document_from_file(self ,file);
 		}
 	}
 
@@ -774,4 +698,16 @@ class PPGtk:Presenter from Gtk:Application:Window {
 		}
 		return G_SOURCE_CONTINUE;
 	}
+
+	private void on_notify_document(G:Object *o, G:Param:Spec *spec, gpointer data){
+		g_return_if_fail( PPGTK_OBJECT_IS(o, TYPE_SELF) );
+		PPGTK_UNUSED(spec);
+		PPGTK_UNUSED(data);
+		// Propagate the change of the document to all slides
+		Self *self = SELF(o);
+		ppgtk_slide_set_document(selfp->slide_current  , G_OBJECT(selfp->document));
+		ppgtk_slide_set_document(selfp->slide_next     , G_OBJECT(selfp->document));
+		ppgtk_slide_set_document(selfp->slide_presenter, G_OBJECT(selfp->document));
+	}
+
 }

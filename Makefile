@@ -11,7 +11,7 @@ DIRBUILD := build
 # A directory containing the GLib Object in GOB2 builder files
 DIRSRC := src
 
-CFLAGS := -g -DDEBUG -std=c99 -W -Wall -Wextra -fopenmp -I$(DIRBUILD) $(shell pkg-config --cflags glib-2.0 gobject-2.0 gio-2.0 gtk+-3.0 poppler)
+CFLAGS := -g -DDEBUG -std=c99 -W -Wall -Wextra -fopenmp -I$(DIRBUILD) $(shell pkg-config --cflags glib-2.0 gobject-2.0 gio-2.0 gtk+-3.0 poppler-glib)
 export CFLAGS
 ifeq ($(PROFILE),yes)
 	override CFLAGS += -pg
@@ -33,7 +33,7 @@ POPPLER=$(shell pkg-config --libs poppler poppler-glib)
 LDFLAGS=-g -lm $(GTK3) $(POPPLER)
 
 PROGRAM := ppgtk
-PROGRAM_ARGS := ~/gobics/promotion/presentation-2014-07-31-bonn/Praesentation_Wide.pdf
+PROGRAM_ARGS := ~/promotion/presentation-2014-07-31-bonn/Praesentation_Wide.pdf
 
 # Keep intermediate files
 .SECONDARY:
@@ -43,36 +43,6 @@ PROGRAM_ARGS := ~/gobics/promotion/presentation-2014-07-31-bonn/Praesentation_Wi
 
 # Remove predefined targets
 .SUFFIXES:
-
-$(DIRBUILD)/ppgtk.h: $(filter $(DIRBUILD)/ppgtk/%.h,$(HEADERS))
-	@if [ ! -f $(dir $@) ]; then mkdir -p $(dir $@); fi
-	@echo "   LST  "$<
-	@for h in $(patsubst $(DIRBUILD)/%,%,$(filter $(DIRBUILD)/ppgtk/%,$(HEADERS))); do \
-		echo "#include <$$h>"; \
-	done > $@
-
-# Build Code and header from GOB
-$(DIRBUILD)/%.c $(DIRBUILD)/%.h: $(DIRSRC)/%.gob
-	@if [ ! -f $(dir $@) ]; then mkdir -p $(dir $@); fi
-	@echo "   GOB2 "$<
-	@gob2 --no-private-header --file-sep='/' --output-dir $(DIRBUILD) $<
-
-$(DIRBUILD)/%.c: $(DIRSRC)/%.c
-	@echo "   CP   "$<
-	@cp $< $@
-
-$(DIRBUILD)/%.h: $(DIRSRC)/%.h
-	@echo "   CP   "$<
-	@cp $< $@
-
-%.o: %.c $(HEADERS)
-	@if [ ! -f $(dir $@) ]; then mkdir -p $(dir $@); fi
-	@echo "   CC   "$@
-	@$(CC) $(CFLAGS) -o $@ -c $<
-
-$(DIRBUILD)/libppgtk.a: $(OBJECTS)
-	@echo "   AR   "$(notdir $@)
-	@ar rcs $@ $+
 
 all: $(PROGRAM)
 
@@ -105,3 +75,33 @@ objects: $(OBJECTS)
 ppgtk: $(OBJECTS)
 	@echo "   LD   "$@
 	$(CC) $+ $(LDFLAGS) -o $@
+
+$(DIRBUILD)/ppgtk.h: $(filter $(DIRBUILD)/ppgtk/%.h,$(HEADERS))
+	@if [ ! -f $(dir $@) ]; then mkdir -p $(dir $@); fi
+	@echo "   LST  "$<
+	@for h in $(patsubst $(DIRBUILD)/%,%,$(filter $(DIRBUILD)/ppgtk/%,$(HEADERS))); do \
+		echo "#include <$$h>"; \
+	done > $@
+
+# Build Code and header from GOB
+$(DIRBUILD)/%.c $(DIRBUILD)/%.h: $(DIRSRC)/%.gob
+	@if [ ! -f $(dir $@) ]; then mkdir -p $(dir $@); fi
+	@echo "   GOB2 "$<
+	@gob2 --no-private-header --file-sep='/' --output-dir $(DIRBUILD) $<
+
+$(DIRBUILD)/%.c: $(DIRSRC)/%.c
+	@echo "   CP   "$<
+	@cp $< $@
+
+$(DIRBUILD)/%.h: $(DIRSRC)/%.h
+	@echo "   CP   "$<
+	@cp $< $@
+
+%.o: %.c $(HEADERS)
+	@if [ ! -f $(dir $@) ]; then mkdir -p $(dir $@); fi
+	@echo "   CC   "$@
+	$(CC) $(CFLAGS) -o $@ -c $<
+
+$(DIRBUILD)/libppgtk.a: $(OBJECTS)
+	@echo "   AR   "$(notdir $@)
+	ar rcs $@ $+

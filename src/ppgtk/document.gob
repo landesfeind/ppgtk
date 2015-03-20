@@ -1,0 +1,184 @@
+%h{
+#include <ppgtk/ppgtk.h>
+#include <glib/poppler.h>
+%}
+
+/**
+  * An abstraction of the Poppler:Document to 
+  * instruct the rendering etc.
+  */
+class PPGtk:Document from G:Object {
+	/**
+	  * Contains the current page of the PPGtk:Document.
+	  * The value returned by \c get_current_page will always
+	  * be a valid index to a Poppler:Page.
+	  */
+	private gint current_page = 0;
+	property INT current_page (
+			name = "current-page",
+			default_value = 0,
+			minimum = 0, 
+			export)
+		set {
+			gint index = g_value_get_int(VAL);
+			if( index >= poppler_document_get_n_pages(selfp->poppler) ){
+				index = poppler_document_get_n_pages(selfp->poppler) - 1;
+			}
+			if( index < 0 )
+				index = 0;
+			selfp->current_page = index;
+		}
+		get { 
+			g_value_set_int(VAL, selfp->current_page); 
+		};
+
+	/** leave it truely internal! */
+	private PopplerDocument *poppler = NULL;
+
+	/**
+	  * Create a new PPGtk:Document on the basis of the given Poppler:Document.
+	  * The PPGtk:Document will hold its own reference on to the poppler document.
+	  *
+	  * \param poppler the Poppler:Document to use (not \c NULL).
+	  */
+	public PPGtkDocument *new(PopplerDocument *poppler){
+		g_return_val_if_fail(poppler != NULL, NULL);
+
+		Self *self = GET_NEW;
+		selfp->poppler = (PopplerDocument *)g_object_ref(G_OBJECT(poppler));
+
+		return self;
+	}
+
+	/**
+	  * Create a new PPGtk:Document loading the PDF from the given file.
+	  */
+	public PPGtkDocument *new_from_uri(const gchar *uri, const gchar *password, GError **error){
+		g_return_val_if_fail(uri != NULL, NULL);
+		PopplerDocument *doc = poppler_document_new_from_file(uri, password,error);
+
+		g_return_val_if_fail(doc == NULL, NULL);
+		if( *error != NULL ){
+			g_object_unref(G_OBJECT(doc));
+			return NULL;
+		}
+
+		Self *self = self_new(doc);
+		g_object_unref(G_OBJECT(doc));
+		return self;
+	}
+
+	/**
+	  * Create a new PPGtk:Document loading the PDF from the given file.
+	  * 
+	  * \b Note: Requires libpoppler >= 0.22
+	  */
+	public PPGtkDocument *new_from_file(G:File *file, const gchar *password, GError **error){
+		g_return_val_if_fail(file != NULL, NULL);
+
+#if POPPLER_CHECK_VERSION(0,22,0)
+		PopplerDocument *doc = poppler_document_new_from_gfile(file, password, NULL, error);
+#else 
+		gchar *uri = g_file_get_uri(file);
+		PopplerDocument *doc = poppler_document_new_from_file(uri, password, error);
+		g_free(uri);
+#endif
+
+		g_return_val_if_fail(doc != NULL, NULL);
+		if( *error != NULL ){
+			g_object_unref(G_OBJECT(doc));
+			return NULL;
+		}
+
+		Self *self = self_new(doc);
+		g_object_unref(G_OBJECT(doc));
+		return self;
+	}
+
+	/**
+	  * Get the number of pages in the document
+	  */
+	public gint num_pages(self){
+		return poppler_document_get_n_pages(selfp->poppler);
+	}
+
+	/**
+	  * Switch to the next page (if there is a next page).
+	  */
+	public void next_page(self){
+		if( selfp->current_page + 1 < self_num_pages(self) )
+			self_set_current_page(self, selfp->current_page + 1 );
+	}
+
+	/**
+	  * Switch to the previous page (if there is a previous page).
+	  */
+	public void previous_page(self){
+		if( selfp->current_page > 0 )
+			self_set_current_page(self, selfp->current_page - 1 );
+	}
+
+	/**
+	  * Draw the page with index \c page_idx to the given widget.
+	  */
+	public gboolean draw_to(self, GtkWidget *w, cairo_t *cr){
+		return self_draw_page_to(self, selfp->current_page, w, cr);
+	}
+
+	/**
+	  * Draw a the page indicated by \c page_idx to the widget \c w.
+	  * 
+	  * \b Note: a returns value of \c FALSE simply indicates that the 
+	  *   \c page_num was out of range.
+	  */
+	public gboolean draw_page_to(self, const gint page_idx, GtkWidget *w, cairo_t *cr){
+		if( page_idx < 0 )
+			return FALSE;
+		if( page_idx >= self_num_pages(self) )
+			return FALSE;
+		g_debug("Drawing page %d to widget", page_idx);
+		gdouble widget_width  = (gdouble)gtk_widget_get_allocated_width(w);
+		gdouble widget_height = (gdouble)gtk_widget_get_allocated_height(w);
+
+		PopplerPage *page = poppler_document_get_page(POPPLER_DOCUMENT(selfp->poppler), page_idx);
+
+		gdouble width, height;
+		poppler_page_get_size(page, &width, &height);
+
+		gdouble scale_x = widget_width  / width;
+		gdouble scale_y = widget_height / height;
+		gdouble scale_min = scale_x < scale_y ? scale_x : scale_y;
+
+		//g_debug("Scaling with %g", scale_min);
+		gdouble offset_x = (widget_width - (width*scale_min))/2;
+		gdouble offset_y = (widget_height - (height*scale_min))/2;
+		//g_debug("Width  - Widget %g, scaled slide %g, offset %g", widget_width, width*scale_min, offset_x);
+		//g_debug("Height - Widget %g, scaled slide %g, offset %g", widget_height, height*scale_min, offset_y);
+	
+		cairo_save(cr);
+		cairo_move_to(cr, offset_x, offset_y);
+		cairo_scale(cr, scale_min, scale_min);
+		poppler_page_render(page, cr);
+		cairo_restore(cr);
+
+		g_object_unref(G_OBJECT(page));
+		return TRUE;
+	}
+
+	/**
+	  * Draw a page with the given offset to the widget.
+	  *
+	  * \param self the document.
+	  * \param page_offset the page offset to use for drawing
+	  * \param w the widget to draw to (required to determine widget sizes)
+	  * \param cr the cairo drawing context that corresponds to \c w.
+	  * \returns the page that was draw, a page of -1 indicates an error.
+	  */
+	public gint draw_page_offset_to(self, const gint page_offset, GtkWidget *w, cairo_t *cr){
+		gint page_idx = selfp->current_page + page_offset;
+		if( page_idx >= 0 && page_idx < self_num_pages(self) )
+			return self_draw_page_to(self, page_idx, w, cr) ? page_idx : -1;
+		return page_idx;
+	}
+
+}

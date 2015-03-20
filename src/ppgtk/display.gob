@@ -1,5 +1,5 @@
 %h{
-#include <ppgtk/ppgtk.h>
+#include <ppgtk/slide.h>
 %}
 
 /**
@@ -38,7 +38,11 @@ class PPGtk:Display from Gtk:Window {
 	/**
 	  * The slide to display in this window.
 	  */
-	private PPGtk:Slide *slide = { ppgtk_slide_new() };
+	private PPGtk:Slide *slide = NULL;
+	property OBJECT slide (
+			flags = CONSTRUCT_ONLY,
+			object_type = PPGtk:Slide,
+			export, link);
 
 	constructor(self){
 		gtk_container_add(GTK_CONTAINER(self), GTK_WIDGET(selfp->slide));
@@ -52,8 +56,8 @@ class PPGtk:Display from Gtk:Window {
 	  * @param parent the parental window (not null).
 	  * @returns the newly created display.
 	  */
-	public PPGtk:Display *new(Gtk:Window *parent (check null type)) onerror NULL {
-		return GET_NEW_VARG("type", GTK_WINDOW_POPUP, "parent", parent, NULL);
+	public PPGtk:Display *new(Gtk:Window *parent (check null type), PPGtk:Slide *slide (check null type)) onerror NULL {
+		return GET_NEW_VARG("type", GTK_WINDOW_POPUP, "parent", parent, "slide", slide, NULL);
 	}
 
 	/**
@@ -65,15 +69,6 @@ class PPGtk:Display from Gtk:Window {
 	public gboolean is_valid(self){
 		GdkScreen *default_screen = gdk_screen_get_default();
 		return gdk_screen_get_n_monitors(default_screen) > 1;
-	}
-
-	/**
-	  * Set the page to present.
-	  *
-	  * @param page the page to display.
-	  */
-	public void present(self, Poppler:Page *page (check type)){
-		ppgtk_slide_set_page(selfp->slide, G_OBJECT(page));
 	}
 
 	/**

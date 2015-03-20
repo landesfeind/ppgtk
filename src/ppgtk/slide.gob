@@ -1,19 +1,52 @@
 %h{
-#include <ppgtk/ppgtk.h>
+#include <ppgtk/document.h>
 %}
 
 /**
   * A widget to display a single page slide.
   */
 class PPGtk:Slide from Gtk:Drawing:Area {
-	private Poppler:Page *page = NULL
+	private PPGtk:Document *document = NULL
 		unrefwith g_object_unref;
-	property OBJECT page (
-			object_type = Poppler:Page,
+	property OBJECT document (
+			object_type = PPGtk:Document,
+			export, link);
+
+	private gint page_offset = 0;
+	property INT page_offset (
+			name = "page-offset",
+			nick = _("Page offset"),
+			blurb = _("Do not display the current main page the page set off by this value"),
+			default_value = 0,
+			flags = CONSTRUCT_ONLY,
+			export, link);
+
+	/**
+	  * Indicates that the slide shall not be updated when the
+	  * current page of the document changes.
+	  */
+	private gboolean freeze = FALSE;
+	property BOOLEAN freeze (
+			nick = _("Freeze display"),
+			blurb = _("Do not update the display even if the documents current page changes"),
+			default_value = FALSE,
+			export, link);
+	/** Just to remember **/
+	private gint last_shown_slide = 0;
+	
+	/**
+	  * Indicates to only display a blank screen instead of a page of
+	  * the document.
+	  */
+	private gboolean blank = FALSE;
+	property BOOLEAN blank (
+			nick = _("Blank the display"),
+			blurb = _("Do not draw a the page but only the default background"),
+			default_value = FALSE,
 			export, link);
 
 	constructor(self){
-		g_signal_connect(G_OBJECT(self), "notify::page", G_CALLBACK(self_on_notify_page), NULL);
+		g_signal_connect(G_OBJECT(self), "notify::document", G_CALLBACK(self_on_notify_document), NULL);
 		g_signal_connect(G_OBJECT(self), "draw", G_CALLBACK(self_on_draw), NULL);
 	}
 
@@ -21,48 +54,63 @@ class PPGtk:Slide from Gtk:Drawing:Area {
 	  * Creates a new slide object.
 	  */
 	public PPGtk:Slide *new(void){
-		return GET_NEW;
+		return self_new_with_offset(0);
+	}
+
+	/**
+	  * Creates a new slide object that will display not the current page but the page 
+	  * referred to by the given page offset (e.g., \c 1 to always display the next slide).
+	  */
+	public PPGtk:Slide *new_with_offset(gint page_offset){
+		return GET_NEW_VARG("page-offset", page_offset, NULL);
 	}
 
 	/**
 	  * Callback to be executed when the widget is required to be redrawn.
 	  *
-	  *
 	  * @see Gtk:Drawing:Area::on_draw
 	  */
 	private gboolean on_draw(GtkWidget *w, cairo_t *cr, gpointer data){
+		g_debug("Redrawing slide");
 		PPGTK_UNUSED(data);
+		g_return_val_if_fail( PPGTK_OBJECT_IS(w, TYPE_SELF) , FALSE);
 		Self *self = SELF(w);
+
 		gdouble widget_width  = (gdouble)gtk_widget_get_allocated_width(w);
 		gdouble widget_height = (gdouble)gtk_widget_get_allocated_height(w);
 
-		cairo_save(cr);
-		// Draw black background
-		cairo_move_to(cr, 0, 0);
-		cairo_line_to(cr, widget_width, 0);
-		cairo_line_to(cr, widget_width, widget_height);
-		cairo_line_to(cr, 0, widget_height);
-		cairo_set_source_rgb(cr, 0, 0, 0);
-		cairo_fill(cr);
-
-		if( ! selfp->page )
+#if GTK_CHECK_VERSION(3,8,0)
+		if( ! gtk_widget_is_visible(w) )
 			return TRUE;
+#else
+		if( ! gtk_widget_get_visible(w) )
+			return TRUE;
+#endif
 
-		gdouble width, height;
-		poppler_page_get_size(selfp->page, &width, &height);
+		// Blank the display
+		if( selfp->blank ){
+			cairo_save(cr);
+			cairo_move_to(cr, 0, 0);
+			cairo_line_to(cr, widget_width, 0);
+			cairo_line_to(cr, widget_width, widget_height);
+			cairo_line_to(cr, 0, widget_height);
+			cairo_set_source_rgb(cr, 0, 0, 0);
+			cairo_fill(cr);
+			cairo_restore(cr);
+			return TRUE;
+		}
 
-		gdouble scale_x = widget_width  / width;
-		gdouble scale_y = widget_height / height;
-		gdouble scale_min = scale_x < scale_y ? scale_x : scale_y;
-
-		g_debug("Scaling with %g", scale_min);
-		gdouble offset_x = (widget_width - (width*scale_min))/2;
-		gdouble offset_y = (widget_height - (height*scale_min))/2;
-		g_debug("Width  - Widget %g, scaled slide %g, offset %g", widget_width, width*scale_min, offset_x);
-		g_debug("Height - Widget %g, scaled slide %g, offset %g", widget_height, height*scale_min, offset_y);
-		cairo_move_to(cr, offset_x, offset_y);
-		cairo_scale(cr, scale_min, scale_min);
-		poppler_page_render(selfp->page, cr);
+		// Without a document we do not display anything
+		if( ! selfp->document ) 
+			return TRUE;
+		
+		// Check for freezing state
+		if( selfp->freeze ){
+			ppgtk_document_draw_page_to(selfp->document, selfp->last_shown_slide, w, cr);
+		}
+		else {
+			selfp->last_shown_slide = ppgtk_document_draw_page_offset_to(selfp->document, selfp->page_offset, w, cr);
+		}
 
 		return TRUE;
 	}
@@ -71,11 +119,35 @@ class PPGtk:Slide from Gtk:Drawing:Area {
 	  * Callback to be executed when the page property of this slide changes.
 	  * This will ensure a redrawing of the Gtk:Drawing:Area.
 	  */
-	private void on_notify_page(G:Object *o, G:Param:Spec *spec, gpointer data){
+	private void on_notify_document(G:Object *o, G:Param:Spec *spec, gpointer data){
 		PPGTK_UNUSED(spec);
 		PPGTK_UNUSED(data);
-		if( ! GTK_IS_WIDGET(o) )
-			return;
+		g_return_if_fail( PPGTK_OBJECT_IS(o, TYPE_SELF) );
+		Self *self = SELF(o);
+
+		if( selfp->document )
+			g_signal_connect(G_OBJECT(selfp->document), "notify::current-page", G_CALLBACK(self_on_notify_document_page), self);
+
+		// Redraw in any case 
 		gtk_widget_queue_draw(GTK_WIDGET(o));
 	}
+
+	private void on_notify_document_page(G:Object *o, G:Param:Spec *spec, gpointer data){
+		PPGTK_UNUSED(spec);
+		g_return_if_fail( o != NULL );
+		g_return_if_fail( PPGTK_OBJECT_IS(o, PPGTK_TYPE_DOCUMENT) );
+		g_return_if_fail( data != NULL );
+		g_return_if_fail( PPGTK_OBJECT_IS(data, TYPE_SELF) );
+
+		g_debug("Slide will display a new document");
+		
+		Self *self = SELF(data);
+		PPGtkDocument *notifier_document = PPGTK_DOCUMENT(o);
+		
+		// ignore notifications from other documents
+		if( selfp->document == notifier_document )
+			gtk_widget_queue_draw(GTK_WIDGET(data));
+	}
+
+		
 }
