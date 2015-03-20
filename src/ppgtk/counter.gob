@@ -1,0 +1,72 @@
+%h{
+#include <ppgtk/largetext.h>
+#include <ppgtk/document.h>
+%}
+
+class PPGtk:Counter from PPGtk:Largetext {
+
+	private PPGtk:Document *document = NULL
+		unrefwith g_object_unref;
+	property OBJECT document (
+			object_type = PPGtk:Document,
+			export, link);
+
+
+	constructor(self){
+		g_signal_connect(G_OBJECT(self), "notify::document", G_CALLBACK(self_on_notify_document), NULL);
+		g_signal_connect(G_OBJECT(self), "draw", G_CALLBACK(self_on_draw), NULL);
+	}
+
+	public PPGtkCounter *new(void){
+		return GET_NEW;
+	}
+
+	/**
+	  * Callback to be executed when the page property of this slide changes.
+	  * This will ensure a redrawing of the Gtk:Drawing:Area.
+	  */
+	private void on_notify_document(G:Object *o, G:Param:Spec *spec, gpointer data){
+		PPGTK_UNUSED(spec);
+		PPGTK_UNUSED(data);
+		g_return_if_fail( PPGTK_OBJECT_IS(o, TYPE_SELF) );
+		Self *self = SELF(o);
+
+		g_debug("Counter will display a new document");
+		if( selfp->document )
+			g_signal_connect(G_OBJECT(selfp->document), "notify::current-page", G_CALLBACK(self_on_notify_document_page), self);
+
+		// Redraw in any case 
+		gtk_widget_queue_draw(GTK_WIDGET(o));
+	}
+
+	private void on_notify_document_page(G:Object *o, G:Param:Spec *spec, gpointer data){
+		PPGTK_UNUSED(spec);
+		g_return_if_fail( o != NULL );
+		g_return_if_fail( PPGTK_OBJECT_IS(o, PPGTK_TYPE_DOCUMENT) );
+		g_return_if_fail( data != NULL );
+		g_return_if_fail( PPGTK_OBJECT_IS(data, TYPE_SELF) );
+
+		Self *self = SELF(data);
+		// ignore notifications from other documents
+		if( selfp->document == PPGTK_DOCUMENT(o) )
+			gtk_widget_queue_draw(GTK_WIDGET(data));
+	}
+
+	private gboolean on_draw(GtkWidget *w, cairo_t *cr, gpointer data){
+		PPGTK_UNUSED(data);
+		g_return_val_if_fail( w != NULL, FALSE);
+		g_return_val_if_fail( PPGTK_OBJECT_IS(w, TYPE_SELF), FALSE);
+
+		Self *self = SELF(w);
+
+		if( ! selfp->document ){
+			ppgtk_largetext_draw(w, cr, "");
+		}
+		else {
+			gint cur = ppgtk_document_get_current_page(selfp->document) + 1;
+			gint max = ppgtk_document_num_pages(selfp->document);
+			ppgtk_largetext_drawv(w, cr, "%d/%d", cur, max);
+		}
+	}
+}
+

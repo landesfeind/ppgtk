@@ -1,0 +1,104 @@
+%h{
+#include <ppgtk/largetext.h>
+%}
+
+class PPGtk:Timer from PPGtk:Largetext {
+	
+	/**
+	  * The time the presenter has to finish
+	  */
+	private gint presentation_time = 1800; 
+	property INT presentation_time (
+			name = "presentation-time",
+			blurb = _("The time to present in seconds"),
+			minimum = 0,
+			default_value = 1800,
+			export, link);
+	private gint64 presentation_start_time = -1;
+
+	constructor(self){
+		g_signal_connect(G_OBJECT(self), "draw", G_CALLBACK(self_on_draw), NULL);
+	}
+
+	public PPGtkTimer *new(void){
+		return GET_NEW;
+	}
+
+	private gboolean on_draw(GtkWidget *w, cairo_t *cr, gpointer data){
+		PPGTK_UNUSED(data);
+		g_return_val_if_fail( w != NULL, FALSE);
+		g_return_val_if_fail( PPGTK_OBJECT_IS(w, TYPE_SELF), FALSE);
+
+		Self *self = SELF(w);
+
+		if( ! selfp->presentation_start_time < 0 ){
+			ppgtk_largetext_draw(w, cr, "");
+		}
+		else {
+			// FIXME: Format the time
+			gboolean short_in_time = FALSE;
+			gchar *str = self_format_remaining_time(self, &short_in_time);
+			ppgtk_largetext_draw(w, cr, str);
+			g_free(str);
+		}
+		return TRUE;
+	}
+	
+	private gchar *format_remaining_time(self, gboolean *close_to_end){
+		gint diff = 0;
+		if( selfp->presentation_start_time >= 0 ){
+			diff = (gint)(g_get_monotonic_time() - selfp->presentation_start_time);
+			diff /= 1000000;
+		}
+		gint t;
+
+		diff = selfp->presentation_time - diff;
+
+		if( close_to_end ){
+			*close_to_end = diff < 0.2 * selfp->presentation_time;
+		}
+
+		GString *text = g_string_new(NULL);
+		gboolean use_double = FALSE;
+		if( diff < 0 ){
+			diff *= -1;
+			g_string_append(text, "- ");
+		}
+		if( diff >= 3600 ){
+			t = diff / 3600;
+			g_string_append_printf(text, "%d", t);
+			diff -= t * 3600;
+			use_double = TRUE;
+		}
+
+		if( diff > 60 || use_double ){
+			t = diff / 60;
+			if( use_double )
+				g_string_append_printf(text, ":%02d", t);
+			else 
+				g_string_append_printf(text, "%d", t);
+			diff -= t * 60;
+			use_double = TRUE;
+		}
+
+		if( use_double )
+			g_string_append_printf(text, ":%02d", diff);
+		else 
+			g_string_append_printf(text, "%d", diff);
+
+		return g_string_free(text, FALSE);
+	}
+
+	public gboolean on_idle_update_time(gpointer data){
+		g_return_val_if_fail(PPGTK_OBJECT_IS(data, TYPE_SELF), FALSE);
+		Self *self = SELF(data);
+		gtk_widget_queue_draw(GTK_WIDGET(self));
+		if( selfp->presentation_start_time < 0 ){
+			return G_SOURCE_REMOVE;
+		}
+		return G_SOURCE_CONTINUE;
+	}
+
+
+}
+

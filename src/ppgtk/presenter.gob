@@ -4,6 +4,8 @@
 #include <ppgtk/slide.h>
 #include <ppgtk/display.h>
 #include <ppgtk/timedialog.h>
+#include <ppgtk/counter.h>
+#include <ppgtk/timer.h>
 
 #define PPGTK_ACTION_OPEN "open"
 #define PPGTK_ACTION_NEXT "next"
@@ -24,19 +26,8 @@ class PPGtk:Presenter from Gtk:Application:Window {
 	  */
 	private Gtk:Widget *filechooser = NULL
 		unrefwith g_object_unref;
-	
-	/**
-	  * The time the presenter has to finish
-	  */
-	private gint presentation_time = 1800; 
-	property INT presentation_time (
-			name = "presentation-time",
-			blurb = _("The time to present in seconds"),
-			minimum = 0,
-			default_value = 1800,
-			export, link);
-	private gint64 presentation_start_time = -1;
 
+	// FIXME: Format the time
 	/**
 	  * An object to access the document.
 	  */
@@ -55,8 +46,8 @@ class PPGtk:Presenter from Gtk:Application:Window {
 	/** The PPGtk:Slide that displays the current page in the presenter */
 	private PPGtk:Slide *slide_presenter = { ppgtk_slide_new() };
 
-	private Gtk:Drawing:Area *draw_counter = { (GtkDrawingArea *)gtk_drawing_area_new(); };
-	private Gtk:Drawing:Area *draw_time = { (GtkDrawingArea *)gtk_drawing_area_new(); };
+	private PPGtk:Counter *counter = { ppgtk_counter_new() };
+	private PPGtk:Timer *timer = { ppgtk_timer_new(); };
 
 	private Gtk:Button *button_prev = { (GtkButton *)gtk_button_new() };
 	private Gtk:Button *button_next = { (GtkButton *)gtk_button_new() };
@@ -85,12 +76,12 @@ class PPGtk:Presenter from Gtk:Application:Window {
 
 
 		g_object_set(G_OBJECT(text_grid          ), "margin-top", 1, NULL);
-		gtk_widget_set_size_request(GTK_WIDGET(selfp->draw_counter), -1, 100);
-		g_object_set(G_OBJECT(selfp->draw_counter), "expand", TRUE, "margin", 2, NULL);
-		gtk_widget_set_size_request(GTK_WIDGET(selfp->draw_time), -1, 100);
-		g_object_set(G_OBJECT(selfp->draw_time), "expand", TRUE, "margin", 2, NULL);
-		gtk_grid_attach(text_grid, GTK_WIDGET(selfp->draw_time   ), 0, 2, 1, 1);
-		gtk_grid_attach(text_grid, GTK_WIDGET(selfp->draw_counter), 1, 2, 1, 1);
+		gtk_widget_set_size_request(GTK_WIDGET(selfp->counter), -1, 100);
+		g_object_set(G_OBJECT(selfp->counter), "expand", TRUE, "margin", 2, NULL);
+		gtk_widget_set_size_request(GTK_WIDGET(selfp->timer), -1, 100);
+		g_object_set(G_OBJECT(selfp->timer), "expand", TRUE, "margin", 2, NULL);
+		gtk_grid_attach(text_grid, GTK_WIDGET(selfp->timer   ), 0, 2, 1, 1);
+		gtk_grid_attach(text_grid, GTK_WIDGET(selfp->counter), 1, 2, 1, 1);
 
 		gtk_grid_attach(button_grid, GTK_WIDGET(selfp->button_prev   ), 0, 0, 1, 1);
 		gtk_grid_attach(button_grid, GTK_WIDGET(selfp->tbutton_freeze), 1, 0, 1, 1);
@@ -117,7 +108,6 @@ class PPGtk:Presenter from Gtk:Application:Window {
 		gtk_grid_attach(grid, GTK_WIDGET(button_grid          ), 0, 3, 2, 1);
 
 
-		//g_signal_connect(G_OBJECT(selfp->draw_counter), "draw", G_CALLBACK(&self_on_draw_counter), self);
 		//g_signal_connect(G_OBJECT(selfp->draw_time   ), "draw", G_CALLBACK(&self_on_draw_time), self);
 		g_signal_connect(G_OBJECT(self), "notify::document", G_CALLBACK(&self_on_notify_document), NULL);
 	}
@@ -181,9 +171,9 @@ class PPGtk:Presenter from Gtk:Application:Window {
 		g_simple_action_set_enabled(action, selfp->document != NULL);
 		g_action_map_add_action(G_ACTION_MAP(self), G_ACTION(action));
 
-		action = g_simple_action_new(PPGTK_ACTION_SET_TIME, NULL);
-		g_signal_connect(G_OBJECT(action), "activate", G_CALLBACK(self_on_action_set_time), self);
-		g_action_map_add_action(G_ACTION_MAP(self), G_ACTION(action));
+		//action = g_simple_action_new(PPGTK_ACTION_SET_TIME, NULL);
+		//g_signal_connect(G_OBJECT(action), "activate", G_CALLBACK(self_on_action_set_time), self);
+		//g_action_map_add_action(G_ACTION_MAP(self), G_ACTION(action));
 	}
 
 	/**
@@ -268,71 +258,20 @@ class PPGtk:Presenter from Gtk:Application:Window {
 		g_action_change_state(a, v);
 	}
 
-	public void set_time(self){
-		PPGtkTimedialog *d = ppgtk_timedialog_new(GTK_WINDOW(self));
-		ppgtk_timedialog_set_seconds(d, selfp->presentation_time);
+	// FIXME: Options for timer
+//	public void set_time(self){
+//		PPGtkTimedialog *d = ppgtk_timedialog_new(GTK_WINDOW(self));
+//		ppgtk_timedialog_set_seconds(d, selfp->presentation_time);
+//
+//		gint r = gtk_dialog_run(GTK_DIALOG(d));
+//		if( r == GTK_RESPONSE_ACCEPT ){
+//			selfp->presentation_time = ppgtk_timedialog_get_seconds(d);
+//			gtk_widget_queue_draw(GTK_WIDGET(selfp->draw_time));
+//		}
+//		gtk_widget_destroy(GTK_WIDGET(d));
+//		return;
+//	}
 
-		gint r = gtk_dialog_run(GTK_DIALOG(d));
-		if( r == GTK_RESPONSE_ACCEPT ){
-			selfp->presentation_time = ppgtk_timedialog_get_seconds(d);
-			gtk_widget_queue_draw(GTK_WIDGET(selfp->draw_time));
-		}
-		gtk_widget_destroy(GTK_WIDGET(d));
-		return;
-	}
-
-//	private void draw_text(Gtk:Widget *w, cairo_t *cr, gchar *text){
-//		gdouble widget_width  = (gdouble)gtk_widget_get_allocated_width(w);
-//		gdouble widget_height = (gdouble)gtk_widget_get_allocated_height(w);
-//
-//		cairo_move_to(cr, 0, 0);
-//		cairo_line_to(cr, widget_width, 0);
-//		cairo_line_to(cr, widget_width, widget_height);
-//		cairo_line_to(cr, 0, widget_height);
-//		cairo_set_source_rgb(cr, 0, 0, 0);
-//		cairo_stroke(cr);
-//		
-//		gint text_width, text_height;
-//		PangoLayout *layout = pango_cairo_create_layout(cr);
-//		pango_layout_set_text(layout, text, -1);
-//		pango_layout_get_size(layout, &text_width, &text_height);
-//		text_width  /= PANGO_SCALE;
-//		text_height /= PANGO_SCALE;
-//
-//		gdouble scalew = widget_width / text_width ;
-//		gdouble scaleh = widget_height / text_height;
-//		gdouble scale = scalew < scaleh ? scalew : scaleh;
-//		scale *= 0.9;
-//		cairo_move_to(cr, (widget_width - (text_width*scale))/2, (widget_height - (text_height*scale))/2);
-//		//cairo_move_to(cr, 0, 0);
-//		cairo_scale(cr, scale, scale);
-//		pango_cairo_show_layout(cr, layout);
-//	}
-//
-//
-//	private gboolean on_draw_counter(GtkWidget *w, cairo_t *cr, gpointer data){
-//		gchar buffer[25];
-//		Self *self = SELF(data);
-//		self_ensure_document(self);
-//
-//		if( ! selfp->document )
-//			return TRUE;
-//
-//		sprintf(buffer, "%d / %d", selfp->slide + 1, poppler_document_get_n_pages(selfp->document));
-//		self_draw_text(w, cr, buffer);
-//		return TRUE;
-//	}
-//
-//	private gboolean on_draw_time(GtkWidget *w, cairo_t *cr, gpointer data){
-//		Self *self = SELF(data);
-//		self_ensure_document(self);
-//		if( ! selfp->document )
-//			return TRUE;
-//
-//		gchar *text = self_format_remaining_time(self, NULL);
-//		self_draw_text(w, cr, text);
-//		return TRUE;
-//	}
 
 	/** Action callback when the "close" action is activated **/
 	private void on_action_close(G:Action *a, G:Variant *param, gpointer data){
@@ -488,12 +427,13 @@ class PPGtk:Presenter from Gtk:Application:Window {
 		ppgtk_display_switch_monitor(selfp->display);
 	}
 
-	private void on_action_set_time(G:Simple:Action *a, G:Variant *v, gpointer data){
-		PPGTK_UNUSED(a);
-		PPGTK_UNUSED(v);
-		Self *self = SELF(data);
-		ppgtk_presenter_set_time(self);
-	}
+// FIXME: option for timer 
+//	private void on_action_set_time(G:Simple:Action *a, G:Variant *v, gpointer data){
+//		PPGTK_UNUSED(a);
+//		PPGTK_UNUSED(v);
+//		Self *self = SELF(data);
+//		ppgtk_presenter_set_time(self);
+//	}
 
 
 	/**
@@ -517,78 +457,6 @@ class PPGtk:Presenter from Gtk:Application:Window {
 		self_display_message(self, GTK_MESSAGE_INFO, msg, vl);
 		va_end(vl);
 	}
-
-//	/**
-//	  * Tries to open the file and to load the poppler object.
-//	  * Returns true when the file is successfully opened. 
-//	  */
-//	private gboolean ensure_document(self){
-//		if( selfp->document )
-//			return TRUE;
-//
-//		if( ! selfp->file )
-//			return FALSE;
-//
-//		if( ! g_file_query_exists(selfp->file, NULL) ){
-//			self_display_error(self, _("File does not exist"));
-//			return FALSE;
-//		}
-//
-//		if( g_file_query_file_type(selfp->file, G_FILE_QUERY_INFO_NONE, NULL) != G_FILE_TYPE_REGULAR ){
-//			self_display_error(self, _("Not a regular file"));
-//			return FALSE;
-//		}
-//
-//		GError *error = NULL;
-//		gchar *file = g_file_get_uri(selfp->file);
-//		selfp->document = poppler_document_new_from_file(file, NULL, &error);
-//		g_free(file);
-//		if( error ){
-//			g_error(error->message);
-//			self_display_error(self, error->message);
-//			return FALSE;
-//		}
-//		if( ! selfp->document ){
-//			self_display_error(self, _("Can not open document for unkown reason"));
-//			return FALSE;
-//		}
-//		
-//		g_debug("Displaying document with %d slides", poppler_document_get_n_pages(selfp->document));
-//		
-//		// Make title
-//		gchar *title = poppler_document_get_title(selfp->document);
-//		GString *titlen = g_string_new(title);
-//		g_string_append(titlen, " - ");
-//		g_string_append(titlen, PPGTK_NAME);
-//		gtk_window_set_title(GTK_WINDOW(self), titlen->str);
-//		g_string_free(titlen, TRUE);
-//		g_free(title);
-//
-//		self_set_slide(self, 0);
-//	
-//		// Enable actions
-//		GAction *a;
-//		a = g_action_map_lookup_action(G_ACTION_MAP(self), PPGTK_ACTION_NEXT);
-//		g_simple_action_set_enabled(G_SIMPLE_ACTION(a), TRUE);
-//		a = g_action_map_lookup_action(G_ACTION_MAP(self), PPGTK_ACTION_PREVIOUS);
-//		g_simple_action_set_enabled(G_SIMPLE_ACTION(a), TRUE);
-//		a = g_action_map_lookup_action(G_ACTION_MAP(self), PPGTK_ACTION_FREEZE);
-//		g_simple_action_set_enabled(G_SIMPLE_ACTION(a), TRUE);
-//		a = g_action_map_lookup_action(G_ACTION_MAP(self), PPGTK_ACTION_BLANK);
-//		g_simple_action_set_enabled(G_SIMPLE_ACTION(a), TRUE);
-//		a = g_action_map_lookup_action(G_ACTION_MAP(self), PPGTK_ACTION_PRESENT);
-//		g_simple_action_set_enabled(G_SIMPLE_ACTION(a), TRUE);
-//		a = g_action_map_lookup_action(G_ACTION_MAP(self), PPGTK_ACTION_RESET);
-//		g_simple_action_set_enabled(G_SIMPLE_ACTION(a), TRUE);
-//		a = g_action_map_lookup_action(G_ACTION_MAP(self), PPGTK_ACTION_SWITCH);
-//		g_simple_action_set_enabled(G_SIMPLE_ACTION(a), TRUE);
-//
-//
-//		return TRUE;
-//	}
-//
-//
-
 	public void open_file(self){
 		if( ! selfp->filechooser ){
 			selfp->filechooser = gtk_file_chooser_dialog_new(_("Open PDF Presentation"),
@@ -645,59 +513,6 @@ class PPGtk:Presenter from Gtk:Application:Window {
 		}
 	}
 
-	private gchar *format_remaining_time(self, gboolean *close_to_end){
-		gint diff = 0;
-		if( selfp->presentation_start_time >= 0 ){
-			diff = (gint)(g_get_monotonic_time() - selfp->presentation_start_time);
-			diff /= 1000000;
-		}
-		gint t;
-
-		diff = selfp->presentation_time - diff;
-
-		if( close_to_end ){
-			*close_to_end = diff < 0.2 * selfp->presentation_time;
-		}
-
-		GString *text = g_string_new(NULL);
-		gboolean use_double = FALSE;
-		if( diff < 0 ){
-			diff *= -1;
-			g_string_append(text, "- ");
-		}
-		if( diff >= 3600 ){
-			t = diff / 3600;
-			g_string_append_printf(text, "%d", t);
-			diff -= t * 3600;
-			use_double = TRUE;
-		}
-
-		if( diff > 60 || use_double ){
-			t = diff / 60;
-			if( use_double )
-				g_string_append_printf(text, ":%02d", t);
-			else 
-				g_string_append_printf(text, "%d", t);
-			diff -= t * 60;
-			use_double = TRUE;
-		}
-
-		if( use_double )
-			g_string_append_printf(text, ":%02d", diff);
-		else 
-			g_string_append_printf(text, "%d", diff);
-
-		return g_string_free(text, FALSE);
-	}
-
-	public gboolean on_idle_update_time(gpointer data){
-		Self *self = SELF(data);
-		gtk_widget_queue_draw(GTK_WIDGET(selfp->draw_time));
-		if( selfp->presentation_start_time < 0 ){
-			return G_SOURCE_REMOVE;
-		}
-		return G_SOURCE_CONTINUE;
-	}
 
 	private void on_notify_document(G:Object *o, G:Param:Spec *spec, gpointer data){
 		g_return_if_fail( PPGTK_OBJECT_IS(o, TYPE_SELF) );
@@ -708,6 +523,33 @@ class PPGtk:Presenter from Gtk:Application:Window {
 		ppgtk_slide_set_document(selfp->slide_current  , G_OBJECT(selfp->document));
 		ppgtk_slide_set_document(selfp->slide_next     , G_OBJECT(selfp->document));
 		ppgtk_slide_set_document(selfp->slide_presenter, G_OBJECT(selfp->document));
+		ppgtk_counter_set_document(selfp->counter, G_OBJECT(selfp->document));
+
+		// Make title
+		gchar *title = ppgtk_document_get_title(selfp->document);
+		GString *titlen = g_string_new(title);
+		g_string_append(titlen, " - ");
+		g_string_append(titlen, PPGTK_NAME);
+		gtk_window_set_title(GTK_WINDOW(self), titlen->str);
+		g_string_free(titlen, TRUE);
+		g_free(title);
+
+		// Enable actions
+		GAction *a;
+		a = g_action_map_lookup_action(G_ACTION_MAP(self), PPGTK_ACTION_NEXT);
+		g_simple_action_set_enabled(G_SIMPLE_ACTION(a), TRUE);
+		a = g_action_map_lookup_action(G_ACTION_MAP(self), PPGTK_ACTION_PREVIOUS);
+		g_simple_action_set_enabled(G_SIMPLE_ACTION(a), TRUE);
+		a = g_action_map_lookup_action(G_ACTION_MAP(self), PPGTK_ACTION_FREEZE);
+		g_simple_action_set_enabled(G_SIMPLE_ACTION(a), TRUE);
+		a = g_action_map_lookup_action(G_ACTION_MAP(self), PPGTK_ACTION_BLANK);
+		g_simple_action_set_enabled(G_SIMPLE_ACTION(a), TRUE);
+		a = g_action_map_lookup_action(G_ACTION_MAP(self), PPGTK_ACTION_PRESENT);
+		g_simple_action_set_enabled(G_SIMPLE_ACTION(a), TRUE);
+		a = g_action_map_lookup_action(G_ACTION_MAP(self), PPGTK_ACTION_RESET);
+		g_simple_action_set_enabled(G_SIMPLE_ACTION(a), TRUE);
+		a = g_action_map_lookup_action(G_ACTION_MAP(self), PPGTK_ACTION_SWITCH);
+		g_simple_action_set_enabled(G_SIMPLE_ACTION(a), TRUE);
 	}
 
 }

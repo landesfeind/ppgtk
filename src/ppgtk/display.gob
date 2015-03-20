@@ -12,8 +12,7 @@
   * If this is not possible, the it will present the slide in 
   * single monitor mode, that is overdrawing the main window.
   *
-  * The PPGtk:Display is mainly controlled from the PPGtk:Presenter 
-  * who will set the page to display.
+  * The PPGtk:Display is mainly controlled from the PPGtk:Presenter.
   */
 class PPGtk:Display from Gtk:Window {
 

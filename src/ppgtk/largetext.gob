@@ -1,0 +1,74 @@
+%h{
+#include <ppgtk/slide.h>
+%}
+
+class PPGtk:Largetext from Gtk:Drawing:Area {
+
+	public void draw(Gtk:Widget *w, cairo_t *cr, gchar *text){
+		gdouble widget_width  = (gdouble)gtk_widget_get_allocated_width(w);
+		gdouble widget_height = (gdouble)gtk_widget_get_allocated_height(w);
+
+		// Black border for debugging purpose
+		//cairo_move_to(cr, 0, 0);
+		//cairo_line_to(cr, widget_width, 0);
+		//cairo_line_to(cr, widget_width, widget_height);
+		//cairo_line_to(cr, 0, widget_height);
+		//cairo_set_source_rgb(cr, 0, 0, 0);
+		//cairo_stroke(cr);
+		
+		gint text_width, text_height;
+		PangoLayout *layout = pango_cairo_create_layout(cr);
+		pango_layout_set_text(layout, text, -1);
+		pango_layout_get_size(layout, &text_width, &text_height);
+		text_width  /= PANGO_SCALE;
+		text_height /= PANGO_SCALE;
+
+		gdouble scalew = widget_width / text_width ;
+		gdouble scaleh = widget_height / text_height;
+		gdouble scale = scalew < scaleh ? scalew : scaleh;
+		scale *= 0.9;
+		cairo_move_to(cr, (widget_width - (text_width*scale))/2, (widget_height - (text_height*scale))/2);
+		//cairo_move_to(cr, 0, 0);
+		cairo_scale(cr, scale, scale);
+		pango_cairo_show_layout(cr, layout);
+	}
+
+	public void drawv(Gtk:Widget *w, cairo_t *cr, gchar *fmt, ...){
+		va_list vl;
+		va_start(vl, fmt);
+		GString *s = g_string_new(NULL);
+		g_string_vprintf(s, fmt, vl);
+		va_end(vl);
+
+		self_draw(w, cr, s->str);
+		g_string_free(s, TRUE);
+	}
+
+
+}
+//
+//
+//	private gboolean on_draw_counter(GtkWidget *w, cairo_t *cr, gpointer data){
+//		gchar buffer[25];
+//		Self *self = SELF(data);
+//		self_ensure_document(self);
+//
+//		if( ! selfp->document )
+//			return TRUE;
+//
+//		sprintf(buffer, "%d / %d", selfp->slide + 1, poppler_document_get_n_pages(selfp->document));
+//		self_draw_text(w, cr, buffer);
+//		return TRUE;
+//	}
+//
+//	private gboolean on_draw_time(GtkWidget *w, cairo_t *cr, gpointer data){
+//		Self *self = SELF(data);
+//		self_ensure_document(self);
+//		if( ! selfp->document )
+//			return TRUE;
+//
+//		gchar *text = self_format_remaining_time(self, NULL);
+//		self_draw_text(w, cr, text);
+//		return TRUE;
+//	}
+

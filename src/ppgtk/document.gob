@@ -102,6 +102,10 @@ class PPGtk:Document from G:Object {
 		return poppler_document_get_n_pages(selfp->poppler);
 	}
 
+	public gchar *get_title(self){
+		return poppler_document_get_title(selfp->poppler);
+	}
+
 	/**
 	  * Switch to the next page (if there is a next page).
 	  */
