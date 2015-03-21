@@ -27,6 +27,7 @@ class PPGtk:Timer from PPGtk:Largetext {
 	constructor(self){
 		g_signal_connect(G_OBJECT(self), "draw", G_CALLBACK(self_on_draw), NULL);
 		g_signal_connect(G_OBJECT(self), "notify::document", G_CALLBACK(self_on_notify_document), NULL);
+		g_signal_connect(G_OBJECT(self), "notify::presentation-time", G_CALLBACK(self_on_notify_document), NULL);
 	}
 
 	public PPGtkTimer *new(void){
@@ -120,6 +121,13 @@ class PPGtk:Timer from PPGtk:Largetext {
 		return G_SOURCE_CONTINUE;
 	}
 
+	private void on_notify_presentation_time(G:Object *o, G:Param:Spec *spec, gpointer data){
+		PPGTK_UNUSED(spec);
+		PPGTK_UNUSED(data);
+		g_return_if_fail(PPGTK_OBJECT_IS(o, TYPE_SELF));
+		gtk_widget_queue_draw(GTK_WIDGET(o));
+	}
+
 	private void on_notify_document(G:Object *o, G:Param:Spec *spec, gpointer data){
 		PPGTK_UNUSED(spec);
 		PPGTK_UNUSED(data);
@@ -131,6 +139,7 @@ class PPGtk:Timer from PPGtk:Largetext {
 	}
 
 	private void on_notify_document_page(G:Object *o, G:Param:Spec *spec, gpointer data){
+		PPGTK_UNUSED(spec);
 		g_return_if_fail(PPGTK_OBJECT_IS(o, PPGTK_TYPE_DOCUMENT));
 		g_return_if_fail(PPGTK_OBJECT_IS(data, TYPE_SELF));
 		Self *self = SELF(data);

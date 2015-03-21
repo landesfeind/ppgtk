@@ -256,19 +256,17 @@ class PPGtk:Presenter from Gtk:Application:Window {
 		g_action_change_state(a, v);
 	}
 
-	// FIXME: Options for timer
-//	public void set_time(self){
-//		PPGtkTimedialog *d = ppgtk_timedialog_new(GTK_WINDOW(self));
-//		ppgtk_timedialog_set_seconds(d, selfp->presentation_time);
-//
-//		gint r = gtk_dialog_run(GTK_DIALOG(d));
-//		if( r == GTK_RESPONSE_ACCEPT ){
-//			selfp->presentation_time = ppgtk_timedialog_get_seconds(d);
-//			gtk_widget_queue_draw(GTK_WIDGET(selfp->draw_time));
-//		}
-//		gtk_widget_destroy(GTK_WIDGET(d));
-//		return;
-//	}
+	public void set_time(self){
+		PPGtkTimedialog *d = ppgtk_timedialog_new(GTK_WINDOW(self));
+		ppgtk_timedialog_set_seconds(d, ppgtk_timer_get_presentation_time(selfp->timer));
+
+		gint r = gtk_dialog_run(GTK_DIALOG(d));
+		if( r == GTK_RESPONSE_ACCEPT ){
+			ppgtk_timer_set_presentation_time(selfp->timer, ppgtk_timedialog_get_seconds(d));
+		}
+		gtk_widget_destroy(GTK_WIDGET(d));
+		return;
+	}
 
 
 	/** Action callback when the "close" action is activated **/
@@ -363,9 +361,7 @@ class PPGtk:Presenter from Gtk:Application:Window {
 	}
 
 	private void on_action_blank(G:Simple:Action *a, G:Variant *v, gpointer data){
-		PPGTK_UNUSED(a);
-		PPGTK_UNUSED(v);
-		Self *self = SELF(data);
+		PPGTK_UNUSED(data);
 
 		v = g_action_get_state(G_ACTION(a));
 		//g_debug("Blank action with state: %s", v == NULL ? "NULLVARIANT" : g_variant_get_boolean(v) ? "true" :"false");
@@ -374,10 +370,8 @@ class PPGtk:Presenter from Gtk:Application:Window {
 	}
 
 	private void on_action_freeze(G:Simple:Action *a, G:Variant *v, gpointer data){
-		PPGTK_UNUSED(a);
-		PPGTK_UNUSED(v);
-		Self *self = SELF(data);
-
+		PPGTK_UNUSED(data);
+		
 		v = g_action_get_state(G_ACTION(a));
 		//g_debug("Freeze action with state: %s", v == NULL ? "NULLVARIANT" : g_variant_get_boolean(v) ? "true" :"false");
 		v = g_variant_new("b", ! g_variant_get_boolean(v));
