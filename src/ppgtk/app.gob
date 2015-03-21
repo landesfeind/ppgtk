@@ -89,20 +89,24 @@ class PPGtk:App from Gtk:Application {
 		g_menu_append_section(submenu, NULL, G_MENU_MODEL(section));
 		g_menu_append(section, _("Close"), "win.close");
 
+		submenu = (GMenu *)g_menu_new();
+		g_menu_append_submenu(menu, _("View"), G_MENU_MODEL(submenu));
+		section = (GMenu *)g_menu_new();
+		g_menu_append_section(submenu, NULL, G_MENU_MODEL(section));
+		g_menu_append(section, _("Switch presenter mode"), "win.present");
+		g_menu_append(section, _("Switch monitor"), "win.switch-monitor");
+
 		// Presentation
 		submenu = (GMenu *)g_menu_new();
 		g_menu_append_submenu(menu, _("Presentation"), G_MENU_MODEL(submenu));
 		g_menu_append(submenu, _("Set presentation time"), "win."PPGTK_ACTION_SET_TIME);
 		section = (GMenu *)g_menu_new();
-		g_menu_append_section(submenu, NULL, G_MENU_MODEL(section));
-		g_menu_append(submenu, _("Switch presenter mode"), "win.present");
 		g_menu_append(section, _("Next slide"), "win.next");
 		g_menu_append(section, _("Previous slide"), "win.previous");
 		section = (GMenu *)g_menu_new();
 		g_menu_append_section(submenu, NULL, G_MENU_MODEL(section));
 		g_menu_append(section, _("Blank screen"), "win.blank");
 		g_menu_append(section, _("Freeze presentation"), "win.freeze");
-		g_menu_append(section, _("Switch monitor"), "win.switch-monitor");
 
 		// HELP MENU
 		submenu = (GMenu *)g_menu_new();
