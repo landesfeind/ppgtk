@@ -218,8 +218,7 @@ class PPGtk:Presenter from Gtk:Application:Window {
 	  * first slide and stopping the elapsed timer.
 	  */
 	public void reset(self){
-		// FIXME:
-		// - reset presentation timer
+		ppgtk_timer_stop(selfp->timer);
 		ppgtk_document_set_current_page(selfp->document, 0);
 	}
 
@@ -521,6 +520,7 @@ class PPGtk:Presenter from Gtk:Application:Window {
 		ppgtk_slide_set_document(selfp->slide_next     , G_OBJECT(selfp->document));
 		ppgtk_slide_set_document(selfp->slide_presenter, G_OBJECT(selfp->document));
 		ppgtk_counter_set_document(selfp->counter, G_OBJECT(selfp->document));
+		ppgtk_timer_set_document(selfp->timer, G_OBJECT(selfp->document));
 
 		// Make title
 		gchar *title = ppgtk_document_get_title(selfp->document);

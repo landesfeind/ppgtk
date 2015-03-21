@@ -16,12 +16,42 @@ class PPGtk:Timer from PPGtk:Largetext {
 			export, link);
 	private gint64 presentation_start_time = -1;
 
+	private guint timer_source = 0;
+
+	private PPGtk:Document *document;
+	property OBJECT document (
+			blurb = _("The document that is currently displayed"),
+			object_type = PPGtk:Document,
+			export, link);
+
 	constructor(self){
 		g_signal_connect(G_OBJECT(self), "draw", G_CALLBACK(self_on_draw), NULL);
+		g_signal_connect(G_OBJECT(self), "notify::document", G_CALLBACK(self_on_notify_document), NULL);
 	}
 
 	public PPGtkTimer *new(void){
 		return GET_NEW;
+	}
+
+	public void start(self){
+		if( ! self_is_running(self) ){
+			selfp->presentation_start_time = g_get_monotonic_time();
+			//g_debug("Starting timer");
+			selfp->timer_source = g_timeout_add(1000, self_on_idle_update_time, self);
+		}
+	}
+
+	public void stop(self){
+		selfp->presentation_start_time = -1;
+		if( self_is_running(self) ){
+			//g_debug("Stopping timer");
+			g_source_remove(selfp->timer_source);
+		}
+		selfp->timer_source = 0;
+	}
+
+	public gboolean is_running(self){
+		return selfp->timer_source > 0;
 	}
 
 	private gboolean on_draw(GtkWidget *w, cairo_t *cr, gpointer data){
@@ -31,33 +61,27 @@ class PPGtk:Timer from PPGtk:Largetext {
 
 		Self *self = SELF(w);
 
-		if( ! selfp->presentation_start_time < 0 ){
-			ppgtk_largetext_draw(w, cr, "");
-		}
-		else {
-			// FIXME: Format the time
-			gboolean short_in_time = FALSE;
-			gchar *str = self_format_remaining_time(self, &short_in_time);
-			ppgtk_largetext_draw(w, cr, str);
-			g_free(str);
-		}
+		gboolean short_in_time = FALSE;
+		gchar *str = self_format_remaining_time(self, &short_in_time);
+		ppgtk_largetext_draw(w, cr, str);
+		g_free(str);
 		return TRUE;
 	}
 	
 	private gchar *format_remaining_time(self, gboolean *close_to_end){
 		gint diff = 0;
 		if( selfp->presentation_start_time >= 0 ){
-			diff = (gint)(g_get_monotonic_time() - selfp->presentation_start_time);
-			diff /= 1000000;
+			diff = (gint)((g_get_monotonic_time() - selfp->presentation_start_time)/1000000);
 		}
-		gint t;
 
+		//g_debug("Have a time difference of %zu (start was %zu)", (size_t)diff, (size_t)selfp->presentation_start_time);
 		diff = selfp->presentation_time - diff;
 
 		if( close_to_end ){
 			*close_to_end = diff < 0.2 * selfp->presentation_time;
 		}
 
+		gint t;
 		GString *text = g_string_new(NULL);
 		gboolean use_double = FALSE;
 		if( diff < 0 ){
@@ -93,12 +117,26 @@ class PPGtk:Timer from PPGtk:Largetext {
 		g_return_val_if_fail(PPGTK_OBJECT_IS(data, TYPE_SELF), FALSE);
 		Self *self = SELF(data);
 		gtk_widget_queue_draw(GTK_WIDGET(self));
-		if( selfp->presentation_start_time < 0 ){
-			return G_SOURCE_REMOVE;
-		}
 		return G_SOURCE_CONTINUE;
 	}
 
+	private void on_notify_document(G:Object *o, G:Param:Spec *spec, gpointer data){
+		PPGTK_UNUSED(spec);
+		PPGTK_UNUSED(data);
+		g_return_if_fail(PPGTK_OBJECT_IS(o, TYPE_SELF));
+		Self *self = SELF(o);
+
+		self_stop(self);
+		g_signal_connect(G_OBJECT(selfp->document), "notify::current-page", G_CALLBACK(self_on_notify_document_page), self);
+	}
+
+	private void on_notify_document_page(G:Object *o, G:Param:Spec *spec, gpointer data){
+		g_return_if_fail(PPGTK_OBJECT_IS(o, PPGTK_TYPE_DOCUMENT));
+		g_return_if_fail(PPGTK_OBJECT_IS(data, TYPE_SELF));
+		Self *self = SELF(data);
+		if( ! self_is_running(self) && selfp->document == PPGTK_DOCUMENT(o) )
+			self_start(self);
+	}
 
 }
 

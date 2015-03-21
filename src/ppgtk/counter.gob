@@ -67,6 +67,7 @@ class PPGtk:Counter from PPGtk:Largetext {
 			gint max = ppgtk_document_num_pages(selfp->document);
 			ppgtk_largetext_drawv(w, cr, "%d/%d", cur, max);
 		}
+		return TRUE;
 	}
 }
 
