@@ -27,7 +27,7 @@ class PPGtk:Timer from PPGtk:Largetext {
 	constructor(self){
 		g_signal_connect(G_OBJECT(self), "draw", G_CALLBACK(self_on_draw), NULL);
 		g_signal_connect(G_OBJECT(self), "notify::document", G_CALLBACK(self_on_notify_document), NULL);
-		g_signal_connect(G_OBJECT(self), "notify::presentation-time", G_CALLBACK(self_on_notify_document), NULL);
+		g_signal_connect(G_OBJECT(self), "notify::presentation-time", G_CALLBACK(self_on_notify_presentation_time), NULL);
 	}
 
 	/**

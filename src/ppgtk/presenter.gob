@@ -170,9 +170,9 @@ class PPGtk:Presenter from Gtk:Application:Window {
 		g_simple_action_set_enabled(action, selfp->document != NULL);
 		g_action_map_add_action(G_ACTION_MAP(self), G_ACTION(action));
 
-		//action = g_simple_action_new(PPGTK_ACTION_SET_TIME, NULL);
-		//g_signal_connect(G_OBJECT(action), "activate", G_CALLBACK(self_on_action_set_time), self);
-		//g_action_map_add_action(G_ACTION_MAP(self), G_ACTION(action));
+		action = g_simple_action_new(PPGTK_ACTION_SET_TIME, NULL);
+		g_signal_connect(G_OBJECT(action), "activate", G_CALLBACK(self_on_action_set_time), self);
+		g_action_map_add_action(G_ACTION_MAP(self), G_ACTION(action));
 	}
 
 	/**
@@ -220,7 +220,7 @@ class PPGtk:Presenter from Gtk:Application:Window {
 	public void reset(self){
 		// Mind the correct sequence! 
 		// Stop timer after setting the document page because the timer will listen to the 
-		// document page change
+		// document page changet 
 		ppgtk_document_set_current_page(selfp->document, 0);
 		ppgtk_timer_stop(selfp->timer);
 	}
@@ -230,6 +230,8 @@ class PPGtk:Presenter from Gtk:Application:Window {
 	  */
 	private void set_freeze(self, gboolean freeze){
 		GAction *a = g_action_map_lookup_action(G_ACTION_MAP(self), PPGTK_ACTION_FREEZE);
+		if( ! a )
+			g_error("Can not find "PPGTK_ACTION_FREEZE" action");
 		GVariant *v = g_variant_new("b", freeze);
 		g_action_change_state(a, v);
 	}
@@ -240,6 +242,8 @@ class PPGtk:Presenter from Gtk:Application:Window {
 	  */
 	private gboolean get_freeze(self){
 		GAction *a = g_action_map_lookup_action(G_ACTION_MAP(self), PPGTK_ACTION_FREEZE);
+		if( ! a )
+			g_error("Can not find "PPGTK_ACTION_FREEZE" action");
 		GVariant *v = g_action_get_state(a);
 		gboolean freeze = g_variant_get_boolean(v);
 		return freeze;
@@ -247,6 +251,8 @@ class PPGtk:Presenter from Gtk:Application:Window {
 
 	private gboolean get_blank(self){
 		GAction *a = g_action_map_lookup_action(G_ACTION_MAP(self), PPGTK_ACTION_BLANK);
+		if( ! a )
+			g_error("Can not find "PPGTK_ACTION_BLANK" action");
 		GVariant *v = g_action_get_state(a);
 		gboolean blank = g_variant_get_boolean(v);
 		g_debug("Queried blank state is: %s", blank ? "blank" : "show");
@@ -255,6 +261,8 @@ class PPGtk:Presenter from Gtk:Application:Window {
 
 	private void set_blank(self, gboolean blank){
 		GAction *a = g_action_map_lookup_action(G_ACTION_MAP(self), PPGTK_ACTION_BLANK);
+		if( ! a )
+			g_error("Can not find "PPGTK_ACTION_BLANK" action");
 		GVariant *v = g_variant_new("b", blank);
 		g_action_change_state(a, v);
 	}
@@ -420,13 +428,12 @@ class PPGtk:Presenter from Gtk:Application:Window {
 		ppgtk_display_switch_monitor(selfp->display);
 	}
 
-// FIXME: option for timer 
-//	private void on_action_set_time(G:Simple:Action *a, G:Variant *v, gpointer data){
-//		PPGTK_UNUSED(a);
-//		PPGTK_UNUSED(v);
-//		Self *self = SELF(data);
-//		ppgtk_presenter_set_time(self);
-//	}
+	private void on_action_set_time(G:Simple:Action *a, G:Variant *v, gpointer data){
+		PPGTK_UNUSED(a);
+		PPGTK_UNUSED(v);
+		Self *self = SELF(data);
+		ppgtk_presenter_set_time(self);
+	}
 
 
 	/**
