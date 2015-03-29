@@ -13,6 +13,7 @@
 #define PPGTK_ACTION_FREEZE "freeze"
 #define PPGTK_ACTION_BLANK "blank"
 #define PPGTK_ACTION_PRESENT "present"
+#define PPGTK_ACTION_START "start"
 #define PPGTK_ACTION_RESET "reset"
 #define PPGTK_ACTION_SWITCH "switch-monitor"
 #define PPGTK_ACTION_SET_TIME "set-time"
@@ -148,6 +149,11 @@ class PPGtk:Presenter from Gtk:Application:Window {
 		g_simple_action_set_enabled(action, selfp->document != NULL);
 		g_action_map_add_action(G_ACTION_MAP(self), G_ACTION(action));
 
+		action = g_simple_action_new(PPGTK_ACTION_START, NULL);
+		g_signal_connect(G_OBJECT(action), "activate", G_CALLBACK(self_on_action_start), self);
+		g_simple_action_set_enabled(action, selfp->document != NULL);
+		g_action_map_add_action(G_ACTION_MAP(self), G_ACTION(action));
+
 		action = g_simple_action_new(PPGTK_ACTION_RESET, NULL);
 		g_signal_connect(G_OBJECT(action), "activate", G_CALLBACK(self_on_action_reset), self);
 		g_simple_action_set_enabled(action, selfp->document != NULL);
@@ -212,6 +218,13 @@ class PPGtk:Presenter from Gtk:Application:Window {
 	}
 
 
+
+	/**
+	  * Start the presentation, i.e., start the timer.
+	  */
+	public void start(self){
+		ppgtk_timer_start(selfp->timer);
+	}
 
 	/**
 	  * Reset the presentation. This results in setting the current slide to the
@@ -306,6 +319,16 @@ class PPGtk:Presenter from Gtk:Application:Window {
 			gtk_widget_show_all(GTK_WIDGET(selfp->display));
 			gtk_window_maximize(GTK_WINDOW(self));
 		}
+	}
+
+	/**
+	  * Action callback to start the timer
+	  */
+	private void on_action_start(G:Action *a, G:Variant *param, gpointer data){
+		PPGTK_UNUSED(a);
+		PPGTK_UNUSED(param);
+		g_return_if_fail( PPGTK_OBJECT_IS(data, TYPE_SELF) );
+		self_start(SELF(data));
 	}
 
 
@@ -547,7 +570,9 @@ class PPGtk:Presenter from Gtk:Application:Window {
 		g_simple_action_set_enabled(G_SIMPLE_ACTION(a), TRUE);
 		a = g_action_map_lookup_action(G_ACTION_MAP(self), PPGTK_ACTION_PRESENT);
 		g_simple_action_set_enabled(G_SIMPLE_ACTION(a), TRUE);
-		a = g_action_map_lookup_action(G_ACTION_MAP(self), PPGTK_ACTION_RESET);
+		a = g_action_map_lookup_action(G_ACTION_MAP(self), PPGTK_ACTION_START);
+		g_simple_action_set_enabled(G_SIMPLE_ACTION(a), TRUE);
+		a = g_action_map_lookup_action(G_ACTION_MAP(self), PPGTK_ACTION_START);
 		g_simple_action_set_enabled(G_SIMPLE_ACTION(a), TRUE);
 		a = g_action_map_lookup_action(G_ACTION_MAP(self), PPGTK_ACTION_SWITCH);
 		g_simple_action_set_enabled(G_SIMPLE_ACTION(a), TRUE);
