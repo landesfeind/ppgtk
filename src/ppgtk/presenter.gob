@@ -572,7 +572,7 @@ class PPGtk:Presenter from Gtk:Application:Window {
 		g_simple_action_set_enabled(G_SIMPLE_ACTION(a), TRUE);
 		a = g_action_map_lookup_action(G_ACTION_MAP(self), PPGTK_ACTION_START);
 		g_simple_action_set_enabled(G_SIMPLE_ACTION(a), TRUE);
-		a = g_action_map_lookup_action(G_ACTION_MAP(self), PPGTK_ACTION_START);
+		a = g_action_map_lookup_action(G_ACTION_MAP(self), PPGTK_ACTION_RESET);
 		g_simple_action_set_enabled(G_SIMPLE_ACTION(a), TRUE);
 		a = g_action_map_lookup_action(G_ACTION_MAP(self), PPGTK_ACTION_SWITCH);
 		g_simple_action_set_enabled(G_SIMPLE_ACTION(a), TRUE);

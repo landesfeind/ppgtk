@@ -100,9 +100,17 @@ class PPGtk:App from Gtk:Application {
 		submenu = (GMenu *)g_menu_new();
 		g_menu_append_submenu(menu, _("Presentation"), G_MENU_MODEL(submenu));
 		g_menu_append(submenu, _("Set presentation time"), "win."PPGTK_ACTION_SET_TIME);
+
 		section = (GMenu *)g_menu_new();
+		g_menu_append_section(submenu, NULL, G_MENU_MODEL(section));
 		g_menu_append(section, _("Next slide"), "win.next");
 		g_menu_append(section, _("Previous slide"), "win.previous");
+
+		section = (GMenu *)g_menu_new();
+		g_menu_append_section(submenu, NULL, G_MENU_MODEL(section));
+		g_menu_append(section, _("Start timer"), "win.start");
+		g_menu_append(section, _("Reset presentation"), "win.reset");
+		
 		section = (GMenu *)g_menu_new();
 		g_menu_append_section(submenu, NULL, G_MENU_MODEL(section));
 		g_menu_append(section, _("Blank screen"), "win.blank");
