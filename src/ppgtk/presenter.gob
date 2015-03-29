@@ -218,8 +218,11 @@ class PPGtk:Presenter from Gtk:Application:Window {
 	  * first slide and stopping the elapsed timer.
 	  */
 	public void reset(self){
-		ppgtk_timer_stop(selfp->timer);
+		// Mind the correct sequence! 
+		// Stop timer after setting the document page because the timer will listen to the 
+		// document page change
 		ppgtk_document_set_current_page(selfp->document, 0);
+		ppgtk_timer_stop(selfp->timer);
 	}
 
 	/**

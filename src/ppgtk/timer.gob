@@ -30,27 +30,35 @@ class PPGtk:Timer from PPGtk:Largetext {
 		g_signal_connect(G_OBJECT(self), "notify::presentation-time", G_CALLBACK(self_on_notify_document), NULL);
 	}
 
+	/**
+	  * Create a new timer object.
+	  */
 	public PPGtkTimer *new(void){
 		return GET_NEW;
 	}
 
+	/**
+	  * If the timer is not already started, it will be started
+	  */
 	public void start(self){
 		if( ! self_is_running(self) ){
 			selfp->presentation_start_time = g_get_monotonic_time();
-			//g_debug("Starting timer");
 			selfp->timer_source = g_timeout_add(1000, self_on_idle_update_time, self);
 		}
 	}
 
+	/**
+	  * Stops the timer from running.
+	  * This will basically reset the presentation start time.
+	  */
 	public void stop(self){
 		selfp->presentation_start_time = -1;
-		if( self_is_running(self) ){
-			//g_debug("Stopping timer");
-			g_source_remove(selfp->timer_source);
-		}
-		selfp->timer_source = 0;
 	}
 
+	/**
+	  * Returns \c TRUE if the timer is currently running. I.e., the timer
+	  * has a starting time point set.
+	  */
 	public gboolean is_running(self){
 		return selfp->timer_source > 0;
 	}
@@ -114,11 +122,11 @@ class PPGtk:Timer from PPGtk:Largetext {
 		return g_string_free(text, FALSE);
 	}
 
-	public gboolean on_idle_update_time(gpointer data){
+	private gboolean on_idle_update_time(gpointer data){
 		g_return_val_if_fail(PPGTK_OBJECT_IS(data, TYPE_SELF), FALSE);
 		Self *self = SELF(data);
 		gtk_widget_queue_draw(GTK_WIDGET(self));
-		return G_SOURCE_CONTINUE;
+		return self_is_running(self) ? G_SOURCE_CONTINUE : G_SOURCE_REMOVE;
 	}
 
 	private void on_notify_presentation_time(G:Object *o, G:Param:Spec *spec, gpointer data){
