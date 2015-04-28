@@ -11,7 +11,8 @@ DIRBUILD := build
 # A directory containing the GLib Object in GOB2 builder files
 DIRSRC := src
 
-CFLAGS := -g -DDEBUG -DDEBUG_DISPLAYS -std=c99 -W -Wall -Wextra -I$(DIRBUILD) $(shell pkg-config --cflags glib-2.0 gobject-2.0 gio-2.0 gtk+-3.0 poppler-glib)
+#CFLAGS := -DDEBUG -DDEBUG_DISPLAYS
+CFLAGS += -g -std=c99 -W -Wall -Wextra -I$(DIRBUILD) $(shell pkg-config --cflags glib-2.0 gobject-2.0 gio-2.0 gtk+-3.0 poppler-glib)
 export CFLAGS
 ifeq ($(PROFILE),yes)
 	override CFLAGS += -pg
