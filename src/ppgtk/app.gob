@@ -129,16 +129,22 @@ class PPGtk:App from Gtk:Application {
 		GtkApplication *app = GTK_APPLICATION(self);
 
 #if GTK_MINOR_VERSION >= 12
-		const gchar * const *accels_next = {"<Release>n", "<Release>plus", "<Release>Right"};
+		const gchar * const *accels_next = {"<Release>n", "<Release>plus", "<Release>Right", "<Release>Next", "<Release>Down", NULL};
+		gtk_application_set_accels_for_action(app, "win.next", accels_next, NULL);
+		const gchar * const *accels_previous = {"<Release>p", "<Release>minus", "<Release>left", "<Release>Prior", "<Release>Up", NULL};
 		gtk_application_set_accels_for_action(app, "win.next", accels_next, NULL);
 #else 
 		gtk_application_add_accelerator(app, "<Release>n"    , "win.next", NULL);
-		//gtk_application_add_accelerator(app, "<Release>plus" , "win.next", NULL);
-		//gtk_application_add_accelerator(app, "<Release>Right", "win.next", NULL);
+		gtk_application_add_accelerator(app, "<Release>plus" , "win.next", NULL);
+		gtk_application_add_accelerator(app, "<Release>Right", "win.next", NULL);
+		gtk_application_add_accelerator(app, "<Release>Down" , "win.next", NULL);
+		gtk_application_add_accelerator(app, "<Release>Next" , "win.next", NULL);
 
 		gtk_application_add_accelerator(app, "<Release>p"    , "win.previous", NULL);
-		//gtk_application_add_accelerator(app, "<RELEASE>minus", "previous", NULL);
-		//gtk_application_add_accelerator(app, "<RELEASE>Left" , "previous", NULL);
+		gtk_application_add_accelerator(app, "<RELEASE>minus", "win.previous", NULL);
+		gtk_application_add_accelerator(app, "<RELEASE>Left" , "win.previous", NULL);
+		gtk_application_add_accelerator(app, "<RELEASE>Up"   , "win.previous", NULL);
+		gtk_application_add_accelerator(app, "<RELEASE>Prior", "win.previous", NULL);
 
 		gtk_application_add_accelerator(app, "<Release>f"    , "win.freeze", NULL);
 		gtk_application_add_accelerator(app, "<Release>b"    , "win.blank", NULL);
